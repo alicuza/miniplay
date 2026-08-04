@@ -9,9 +9,14 @@
 
 %verbose
 
-%start complete_commands
+%start program
 
 %%
+
+program
+	: linebreak complete_commands linebreak
+	| linebreak
+	;
 
 complete_commands
 	: complete_commands separator list
