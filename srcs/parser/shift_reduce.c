@@ -201,7 +201,10 @@ static uint64_t	reduce_io_file_GREAT(t_ctx *c, t_parser_state *parse, t_rule *ru
 static uint64_t	reduce_io_file_DGREAT(t_ctx *c, t_parser_state *parse, t_rule *rule);
 static uint64_t	reduce_filename(t_ctx *c, t_parser_state *parse, t_rule *rule);
 static uint64_t	reduce_io_here(t_ctx *c, t_parser_state *parse, t_rule *rule);
+static uint64_t	reduce_command_redirects(t_ctx *c, t_parser_state *parse,
+		t_rule *rule);
 static uint64_t	reduce_subshell(t_ctx *c, t_parser_state *parse, t_rule *rule);
+static uint64_t	reduce_term_append(t_ctx *c, t_parser_state *parse, t_rule *rule);
 
 static t_rule	rule_dispatch_first(int32_t action)
 {
@@ -219,7 +222,7 @@ static t_rule	rule_dispatch_first(int32_t action)
 	rule[10] = (t_rule){reduce_pipeline_append, 4, SYM_PIPELINE};
 	rule[11] = (t_rule){NULL, 1, SYM_COMMAND};
 	rule[12] = (t_rule){NULL, 1, SYM_COMMAND};
-	rule[13] = (t_rule){NULL, 2, SYM_COMMAND};
+	rule[13] = (t_rule){reduce_command_redirects, 2, SYM_COMMAND};
 	rule[14] = (t_rule){reduce_subshell, 3, SYM_SUBSHELL};
 	rule[15] = (t_rule){NULL, 2, SYM_COMPOUND_LIST};
 	return (rule[action]);
@@ -229,7 +232,7 @@ static t_rule	rule_dispatch_second(int32_t action)
 {
 	t_rule	rule[16];
 	rule[0] = (t_rule){NULL, 3, SYM_COMPOUND_LIST};
-	rule[1] = (t_rule){NULL, 3, SYM_TERM};
+	rule[1] = (t_rule){reduce_term_append, 3, SYM_TERM};
 	rule[2] = (t_rule){NULL, 1, SYM_TERM};
 	rule[3] = (t_rule){reduce_simple_command, 3, SYM_SIMPLE_COMMAND};
 	rule[4] = (t_rule){reduce_simple_command, 2, SYM_SIMPLE_COMMAND};
@@ -574,13 +577,44 @@ static uint64_t	reduce_io_here(t_ctx *c, t_parser_state *parse, t_rule *rule)
 	return (idx);
 }
 
-static uint64_t	reduce_subshell(t_ctx *c, t_parser_state *parse, t_rule *rule)
+static uint64_t	reduce_command_redirects(t_ctx *c, t_parser_state *parse,
+		t_rule *rule)
 {
 	t_node		*node;
 
-	node = node_at(c, stack_at(c, parse, rule, 1)->node_idx);
+	node = node_at(c, stack_at(c, parse, rule, 0)->node_idx);
+	node->data.command.redir_head_idx = stack_at(c, parse, rule, 1)->node_idx;
+	return (stack_at(c, parse, rule, 0)->node_idx);
+}
+
+static uint64_t	reduce_subshell(t_ctx *c, t_parser_state *parse, t_rule *rule)
+{
+	t_node		*node;
+	uint64_t	idx;
+
+	idx = node_alloc(c, NODE_COMMAND);
+	node = node_at(c, idx);
 	node->flags |= FLAG_SUBSHELL;
-	return (stack_at(c, parse, rule, 1)->node_idx);
+	node->data.command.arg_head_idx = stack_at(c, parse, rule, 1)->node_idx;
+	return (idx);
+}
+
+static uint64_t	reduce_term_append(t_ctx *c, t_parser_state *parse,
+		t_rule *rule)
+{
+	t_node		*node;
+	uint64_t	head;
+	uint64_t	new;
+
+	head = stack_at(c, parse, rule, 0)->node_idx;
+	new = stack_at(c, parse, rule, 2)->node_idx;
+	if (!head)
+		return (new);
+	node = node_at(c, head);
+	while (node->data.pipeline.next_idx)
+		node = node_at(c, node->data.pipeline.next_idx);
+	node->data.pipeline.next_idx = new;
+	return (head);
 }
 
 /* -------- LALR driver ------------------------------------------------------ */
