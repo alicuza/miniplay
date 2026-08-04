@@ -26,6 +26,39 @@ void	print_char_info(unsigned char c)
 		fprintf(stderr, "'.'(%u)", c);
 }
 
+size_t	escape_into_buf(char *dst, size_t size, const char *src, size_t len)
+{
+	size_t	pos;
+	size_t	i;
+	unsigned char	c;
+
+	pos = 0;
+	i = 0;
+	while (i < len && pos + 2 < size)
+	{
+		c = (unsigned char)src[i];
+		if (c == '\n')
+		{
+			dst[pos++] = '\\';
+			dst[pos++] = 'n';
+		}
+		else if (c == '\\')
+		{
+			dst[pos++] = '\\';
+			dst[pos++] = '\\';
+		}
+		else if (ft_isprint(c))
+			dst[pos++] = c;
+		else if (ft_isspace(c))
+			dst[pos++] = ' ';
+		else
+			dst[pos++] = '.';
+		++i;
+	}
+	dst[pos] = '\0';
+	return (pos);
+}
+
 void	print_escaped_str(FILE* out, const char *s)
 {
 	print_escaped_strn(out, s, ft_strlen(s));

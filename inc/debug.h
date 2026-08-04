@@ -29,11 +29,13 @@ void		print_arena(t_arena *arena);
 void		print_flags(FILE *out, uint32_t flags);
 void		print_token(FILE *out, t_ctx *c, t_token *token);
 void		print_token_line(FILE *out, t_ctx *c, t_token *token);
-void		print_symbol(t_ctx *c, t_symbol *symbol, uint64_t idx);
-void		print_stack(t_ctx *c, t_parser_state *parse);
-void		print_symbol_line(FILE *out, t_ctx *c, t_symbol *symbol, uint64_t idx);
+void		print_symbol(FILE *out, t_ctx *c, t_symbol *symbol, uint64_t idx);
+void		print_stack(FILE *out, t_ctx *c, t_parser_state *parse);
+void		print_parse_table(FILE *out, t_ctx *c, t_parser_state *parse,
+				const char *action);
+size_t		escape_into_buf(char *dst, size_t size, const char *src,
+				size_t len);
 void		print_tokens(FILE *out, t_ctx *c);
-void		print_symbols(FILE *out, t_ctx *c, t_parser_state *parse);
 void		print_node_line(FILE *out, t_ctx *c, t_node *node, uint64_t idx);
 void		print_nodes(FILE *out, t_ctx *c);
 void		print_lex_state(t_ctx *c, t_lexer_state *l);

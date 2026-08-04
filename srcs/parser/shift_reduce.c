@@ -592,6 +592,32 @@ static t_lalr_action	reduce_or_error(t_ctx *c, t_parser_state *parse,
 	return (reduce(c, parse, action));
 }
 
+#ifdef DEBUG
+static void	build_rule_desc(char *buf, size_t size, int32_t action,
+		t_ctx *c, t_rule *rule, t_parser_state *parse)
+{
+	size_t		pos;
+	uint64_t	rhs;
+
+	pos = (size_t)snprintf(buf, size, "reduce %d (%s :=", action,
+		get_symbol_type_name(rule->lhs_type));
+	if (rule->rhs_len == 0)
+		pos += (size_t)snprintf(buf + pos, size - pos, " (epsilon)");
+	else
+	{
+		rhs = 0;
+		while (rhs < rule->rhs_len)
+		{
+			pos += (size_t)snprintf(buf + pos, size - pos, " %s",
+				get_symbol_type_name(
+					stack_at(c, parse, rule, rhs)->type));
+			++rhs;
+		}
+	}
+	snprintf(buf + pos, size - pos, ")");
+}
+#endif
+
 static t_lalr_action	reduce(t_ctx *c, t_parser_state *parse, int32_t action)
 {
 	t_rule		rule;
@@ -602,32 +628,21 @@ static t_lalr_action	reduce(t_ctx *c, t_parser_state *parse, int32_t action)
 #ifdef DEBUG
 	uint32_t	rhs;
 	t_symbol	*symbol;
+	char		rule_desc[256];
 #endif
 
 	if (action == 1)						/* $accept: program $end */
 	{
 #ifdef DEBUG
-		fprintf(stderr, "--- accept ---\n");
+		if (c->states & DBG_PARSER)
+			print_parse_table(stderr, c, parse, "accept");
 #endif
 		return (LALR_ACCEPT);
 	}
 	rule = get_rule(action);
 #ifdef DEBUG
-	fprintf(stderr, "--- reduce ---  rule %d: %s :=", action,
-		get_symbol_type_name(rule.lhs_type));
-	if (rule.rhs_len == 0)
-		fprintf(stderr, " (epsilon)");
-	else
-	{
-		rhs = 0;
-		while (rhs < rule.rhs_len)
-		{
-			fprintf(stderr, " %s",
-				get_symbol_type_name(stack_at(c, parse, &rule, rhs)->type));
-			++rhs;
-		}
-	}
-	fprintf(stderr, "\n");
+	if (c->states & DBG_PARSER)
+		build_rule_desc(rule_desc, sizeof(rule_desc), action, c, &rule, parse);
 #endif
 	if (rule.rhs_len)
 	{
@@ -637,14 +652,17 @@ static t_lalr_action	reduce(t_ctx *c, t_parser_state *parse, int32_t action)
 			node_idx = stack_at(c, parse, &rule, 0)->node_idx;
 		token_idx = stack_at(c, parse, &rule, rule.rhs_len - 1)->token_idx;
 #ifdef DEBUG
-		rhs = 0;
-		while (rhs < rule.rhs_len)
+		if (c->states & DBG_PARSER)
 		{
-			symbol = stack_at(c, parse, &rule, rhs);
-			if (symbol->node_idx)
-				print_node_line(stderr, c, node_at(c, symbol->node_idx),
-					symbol->node_idx);
-			++rhs;
+			rhs = 0;
+			while (rhs < rule.rhs_len)
+			{
+				symbol = stack_at(c, parse, &rule, rhs);
+				if (symbol->node_idx)
+					print_node_line(stderr, c, node_at(c, symbol->node_idx),
+						symbol->node_idx);
+				++rhs;
+			}
 		}
 #endif
 	}
@@ -661,15 +679,22 @@ static t_lalr_action	reduce(t_ctx *c, t_parser_state *parse, int32_t action)
 	else
 		parse->state = get_yydefgoto(lhs);
 #ifdef DEBUG
-	fprintf(stderr, "-- goto state %d\n", parse->state);
-	if (node_idx)
-		print_node_line(stderr, c, node_at(c, node_idx), node_idx);
+	if (c->states & DBG_PARSER)
+	{
+		if (node_idx)
+			print_node_line(stderr, c, node_at(c, node_idx), node_idx);
+	}
 #endif
 	push_nonterm(c, parse, rule.lhs_type, node_idx, token_idx);
+#ifdef DEBUG
+	if (c->states & DBG_PARSER)
+		print_parse_table(stderr, c, parse, rule_desc);
+#endif
 	if (parse->state == YYFINAL)
 	{
 #ifdef DEBUG
-		fprintf(stderr, "--- accept ---\n");
+		if (c->states & DBG_PARSER)
+			print_parse_table(stderr, c, parse, "accept");
 #endif
 		return (LALR_ACCEPT);
 	}
@@ -679,27 +704,23 @@ static t_lalr_action	reduce(t_ctx *c, t_parser_state *parse, int32_t action)
 static t_lalr_action	shift(t_ctx *c, t_parser_state *parse, int32_t action)
 {
 #ifdef DEBUG
-	t_token	*token;
-	t_arena	*tokens;
+	char	action_desc[64];
 #endif
 
 	parse->state = action;
 #ifdef DEBUG
-	if (parse->flags & PARSE_LOOKAHEAD_EOF)
-		fprintf(stderr, "--- shift ---  %s -> state %d\n",
-			get_symbol_type_name(SYM_EOF), parse->state);
-	else
+	if (c->states & DBG_PARSER)
 	{
-		tokens = &c->arena[AT_TOKENS];
-		token = get_ptr_from_idx(tokens, parse->token_idx);
-		fprintf(stderr, "--- shift ---  %s -> state %d\n",
-			get_symbol_type_name(classify_token(c, token)), parse->state);
+		snprintf(action_desc, sizeof(action_desc), "shift -> state %d",
+			parse->state);
+		print_parse_table(stderr, c, parse, action_desc);
 	}
 #endif
 	if (parse->state == YYFINAL)
 	{
 #ifdef DEBUG
-		fprintf(stderr, "--- accept ---\n");
+		if (c->states & DBG_PARSER)
+			print_parse_table(stderr, c, parse, "accept");
 #endif
 		return (LALR_ACCEPT);
 	}

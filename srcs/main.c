@@ -93,7 +93,7 @@ int	main(int argc, char **argv, char **envp)
 		else
 			print_arena(&c.arena[AT_TOKENS]);
 		if (c.scope & SCOPE_STACK)
-			print_symbols(stdout, &c, &parse);
+			print_stack(stdout, &c, &parse);
 		else
 			print_arena(&c.arena[AT_STACK]);
 		if (c.scope & SCOPE_COMMAND)

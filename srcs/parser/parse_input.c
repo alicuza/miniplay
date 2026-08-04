@@ -88,17 +88,26 @@ static bool	handle_here_doc(t_ctx *c, t_parser_state *parse)
 	return (true);
 }
 
-#ifdef DEBUG
-static void	debug_print_lookahead(t_ctx *c, t_parser_state *parse)
+static bool	parse_advance(t_ctx *c, t_parser_state *parse, bool *have_lookahead, t_lalr_action action)
 {
-	fprintf(stderr, "\n--- lookahead ---\n");
-	print_token(stderr, c, get_ptr_from_idx(&c->arena[AT_TOKENS], parse->token_idx));
-	if (c->arenas & DBG_ARENA_STRING)
-		print_arena(&c->arena[AT_STRING]);
-	if (c->arenas & DBG_ARENA_TOKENS)
-		print_arena(&c->arena[AT_TOKENS]);
+	if (action == LALR_REDUCE)
+		return (true);
+	if (action == LALR_SHIFT)
+	{
+		*have_lookahead = false;
+		return (true);
+	}
+	if (action == LALR_ACCEPT)
+	{
+		parse->flags |= PARSE_DONE;
+		return (false);
+	}
+	report_parse_error(c, parse);
+	*have_lookahead = false;
+	return (false);
 }
 
+#ifdef DEBUG
 static void	debug_parse_header(t_parser_state *parse)
 {
 	uint32_t	bit;
@@ -124,25 +133,6 @@ static void	debug_parse_header(t_parser_state *parse)
 }
 #endif
 
-static bool	parse_advance(t_ctx *c, t_parser_state *parse, bool *have_lookahead, t_lalr_action action)
-{
-	if (action == LALR_REDUCE)
-		return (true);
-	if (action == LALR_SHIFT)
-	{
-		*have_lookahead = false;
-		return (true);
-	}
-	if (action == LALR_ACCEPT)
-	{
-		parse->flags |= PARSE_DONE;
-		return (false);
-	}
-	report_parse_error(c, parse);
-	*have_lookahead = false;
-	return (false);
-}
-
 static bool	run_parse_iteration(t_ctx *c, t_parser_state *parse, t_lexer_state *lex, bool *have_lookahead)
 {
 	t_lalr_action	action;
@@ -159,13 +149,17 @@ static bool	run_parse_iteration(t_ctx *c, t_parser_state *parse, t_lexer_state *
 		return (handle_here_doc(c, parse));
 	}
 #ifdef DEBUG
-	debug_print_lookahead(c, parse);
+	if (c->arenas & DBG_ARENA_STRING)
+		print_arena(&c->arena[AT_STRING]);
+	if (c->arenas & DBG_ARENA_TOKENS)
+		print_arena(&c->arena[AT_TOKENS]);
 #endif
 	action = shift_reduce(c, parse, lex);
 #ifdef DEBUG
+	if (c->scope & SCOPE_STACK)
+		print_stack(stdout, c, parse);
 	if (c->states & DBG_PARSER)
 	{
-		print_stack(c, parse);
 		if (action == LALR_REDUCE || action == LALR_ACCEPT)
 			print_nodes(stderr, c);
 	}

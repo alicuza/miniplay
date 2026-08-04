@@ -26,74 +26,117 @@ static bool	symbol_has_content(t_symbol_type type)
 	return (false);
 }
 
-void	print_symbol(t_ctx *c, t_symbol *symbol, uint64_t idx)
+static void	build_symbol_desc(t_ctx *c, t_symbol *symbol, uint64_t idx,
+		char *buf, size_t size)
 {
 	t_arena	*tokens;
 	t_token	*token;
 	t_arena	*input;
+	size_t	pos;
 
 	tokens = &c->arena[AT_TOKENS];
 	input = &c->arena[AT_STRING];
 	token = get_ptr_from_idx(tokens, symbol->token_idx);
-	fprintf(stderr, "%lu %s(", idx, get_symbol_type_name(symbol->type));
+	pos = (size_t)snprintf(buf, size, "%lu %s(", idx,
+		get_symbol_type_name(symbol->type));
 	if (symbol->type == SYM_LINEBREAK && input->buf[token->offset] != '\n')
-		fprintf(stderr, "epsilon");
+		pos += (size_t)snprintf(buf + pos, size - pos, "epsilon");
 	else if (symbol_has_content(symbol->type))
-		print_escaped_str(stderr, input->buf + token->offset);
+		pos += escape_into_buf(buf + pos, size - pos,
+			input->buf + token->offset, ft_strlen(input->buf + token->offset));
 	else
-		fprintf(stderr, "node %lu", symbol->node_idx);
-	fprintf(stderr, ") { node_idx = %lu flags = ", symbol->node_idx);
-	print_flags(stderr, token->flags);
-	fprintf(stderr, " }\n");
+		pos += (size_t)snprintf(buf + pos, size - pos, "node %lu",
+			symbol->node_idx);
+	snprintf(buf + pos, size - pos, ")");
 }
 
-void	print_stack(t_ctx *c, t_parser_state *parse)
+void	print_symbol(FILE *out, t_ctx *c, t_symbol *symbol, uint64_t idx)
+{
+	t_arena	*tokens;
+	t_token	*token;
+	char	desc[256];
+
+	tokens = &c->arena[AT_TOKENS];
+	token = get_ptr_from_idx(tokens, symbol->token_idx);
+	build_symbol_desc(c, symbol, idx, desc, sizeof(desc));
+	fprintf(out, "%s { node_idx = %lu entry_state = %u flags = ", desc,
+		symbol->node_idx, symbol->entry_state);
+	print_flags(out, token->flags);
+	fprintf(out, " }\n");
+}
+
+void	print_stack(FILE *out, t_ctx *c, t_parser_state *parse)
 {
 	uint64_t	phys;
 	t_symbol	*symbol;
 	t_arena		*stack;
 
 	stack = &c->arena[AT_STACK];
-	fprintf(stderr, "\n--- stack ---  (state %d)\n", parse->state);
-	fprintf(stderr, "--- state stack: ");
-	phys = 1;
-	while (phys <= parse->stack_idx)
-	{
-		symbol = get_ptr_from_idx(stack, phys);
-		fprintf(stderr, "%d ", symbol->entry_state);
-		++phys;
-	}
-	fprintf(stderr, "---\n");
-	fprintf(stderr, "--- top -----\n");
+	fprintf(out, "\n--- stack ---  (state %d)\n", parse->state);
+	fprintf(out, "--- top -----\n");
 	phys = parse->stack_idx;
 	while (phys)
 	{
 		symbol = get_ptr_from_idx(stack, phys);
-		print_symbol(c, symbol, phys);
+		print_symbol(out, c, symbol, phys);
 		--phys;
 	}
-	fprintf(stderr, "--- bottom ----\n");
+	fprintf(out, "--- bottom ----\n");
 }
 
-void	print_symbol_line(FILE *out, t_ctx *c, t_symbol *symbol, uint64_t idx)
+static void	build_stack_desc(t_ctx *c, t_parser_state *parse, char *buf,
+		size_t size)
 {
-	t_arena	*input;
-	t_arena	*tokens;
-	t_token	*token;
+	t_symbol	*symbol;
+	char		desc[256];
+	size_t		pos;
+	uint64_t	phys;
 
-	tokens = &c->arena[AT_TOKENS];
-	input = &c->arena[AT_STRING];
-	token = get_ptr_from_idx(tokens, symbol->token_idx);
-	fprintf(out, "%lu %s(", idx, get_symbol_type_name(symbol->type));
-	if (symbol->type == SYM_LINEBREAK && input->buf[token->offset] != '\n')
-		fprintf(out, "epsilon");
-	else if (symbol_has_content(symbol->type))
-		print_escaped_str(out, input->buf + token->offset);
-	else
-		fprintf(out, "node %lu", symbol->node_idx);
-	fprintf(out, ") { node_idx = %lu flags = ", symbol->node_idx);
-	print_flags(out, token->flags);
-	fprintf(out, " }\n");
+	pos = 0;
+	phys = 1;
+	while (phys <= parse->stack_idx)
+	{
+		symbol = get_ptr_from_idx(&c->arena[AT_STACK], phys);
+		build_symbol_desc(c, symbol, phys, desc, sizeof(desc));
+		pos += ft_strlcpy(buf + pos, desc, size - pos);
+		pos += ft_strlcpy(buf + pos, " ", size - pos);
+		++phys;
+	}
+}
+
+static void	build_lookahead_desc(t_ctx *c, t_parser_state *parse, char *buf,
+		size_t size)
+{
+	t_token	*token;
+	char	*body;
+	size_t	pos;
+
+	if (parse->flags & PARSE_LOOKAHEAD_EOF)
+	{
+		ft_strlcpy(buf, "SYM_EOF", size);
+		return ;
+	}
+	token = get_ptr_from_idx(&c->arena[AT_TOKENS], parse->token_idx);
+	body = get_ptr_from_offset(&c->arena[AT_STRING], token->offset);
+	pos = (size_t)snprintf(buf, size, "%s(",
+		get_symbol_type_name(classify_token(c, token)));
+	pos += escape_into_buf(buf + pos, size - pos, body, ft_strlen(body));
+	snprintf(buf + pos, size - pos, ")");
+}
+
+#define STACK_COL_WIDTH		180
+#define LOOKAHEAD_COL_WIDTH	28
+
+void	print_parse_table(FILE *out, t_ctx *c, t_parser_state *parse,
+		const char *action)
+{
+	char	stack_desc[4096];
+	char	lookahead[96];
+
+	build_stack_desc(c, parse, stack_desc, sizeof(stack_desc));
+	build_lookahead_desc(c, parse, lookahead, sizeof(lookahead));
+	fprintf(out, "[bottom] %-*s [top] | %-*s | %s\n", STACK_COL_WIDTH,
+		stack_desc, LOOKAHEAD_COL_WIDTH, lookahead, action);
 }
 
 void	print_tokens(FILE *out, t_ctx *c)
@@ -115,33 +158,6 @@ void	print_tokens(FILE *out, t_ctx *c)
 	{
 		token = get_ptr_from_idx(tokens, i);
 		print_token_line(out, c, token);
-		++i;
-	}
-}
-
-void	print_symbols(FILE *out, t_ctx *c, t_parser_state *parse)
-{
-	t_arena	*stack;
-	t_symbol	*symbol;
-	uint64_t	top;
-	uint64_t	count;
-	uint64_t	i;
-
-	stack = &c->arena[AT_STACK];
-	if (stack->cap == 0)
-		return ;
-	top = parse->stack_idx;
-	if (top == 0)
-		return ;
-	count = (top - 1) / stack->stride + 1;
-	if (count == 0)
-		return ;
-	fprintf(out, "\n--- symbols ---\n");
-	i = 1;
-	while (i <= count)
-	{
-		symbol = get_ptr_from_idx(stack, i);
-		print_symbol_line(out, c, symbol, i);
 		++i;
 	}
 }
