@@ -215,6 +215,7 @@ typedef struct s_parser_state
 	uint64_t	token_idx;			/* current lookahead token in AT_TOKENS */
 	uint64_t	arg_head;			/* argument list head in AT_COMMAND */
 	uint64_t	redir_head;			/* redirection list head in AT_COMMAND */
+	uint64_t	exec_idx;			/* complete_commands head awaiting execution */
 	uint8_t		flags;				/* PARSE_SAVE_TOKENS | PARSE_HERE_BODY | PARSE_ERROR */
 	t_here_state	here;			/* active heredoc: delimiter + body slices */
 }	t_parser_state;

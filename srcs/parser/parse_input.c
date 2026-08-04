@@ -133,6 +133,28 @@ static void	debug_parse_header(t_parser_state *parse)
 }
 #endif
 
+static void	parse_exec(t_ctx *c, t_parser_state *parse)
+{
+	t_symbol	*symbol;
+
+	if (!parse->exec_idx)
+		return ;
+#ifndef DEBUG
+	exec_list(c, parse->exec_idx);
+#else
+	if (!c->no_exec)
+		exec_list(c, parse->exec_idx);
+#endif
+	parse->exec_idx = 0;
+#ifdef DEBUG
+	if (c->no_exec)
+		return ;
+#endif
+	arena_clear(&c->arena[AT_COMMAND]);
+	symbol = get_ptr_from_idx(&c->arena[AT_STACK], parse->stack_idx);
+	symbol->node_idx = 0;
+}
+
 static bool	run_parse_iteration(t_ctx *c, t_parser_state *parse, t_lexer_state *lex, bool *have_lookahead)
 {
 	t_lalr_action	action;
@@ -164,6 +186,7 @@ static bool	run_parse_iteration(t_ctx *c, t_parser_state *parse, t_lexer_state *
 			print_nodes(stderr, c);
 	}
 #endif
+	parse_exec(c, parse);
 	return (parse_advance(c, parse, have_lookahead, action));
 }
 
@@ -174,6 +197,7 @@ static void	final_pass(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
 	while (true)
 	{
 		action = shift_reduce(c, parse, lex);
+		parse_exec(c, parse);
 		if (action == LALR_ACCEPT)
 		{
 			parse->flags |= PARSE_DONE;
@@ -187,22 +211,35 @@ static void	final_pass(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
 	}
 }
 
-t_parser_state	parse_input(t_ctx *c)
+void	parse_input(t_ctx *c, t_parser_state *parse)
 {
-	t_parser_state	parse;
 	t_lexer_state	lex;
 	bool			have_lookahead;
 
 	ft_memset(&lex, 0, sizeof(t_lexer_state));
-	ft_memset(&parse, 0, sizeof(t_parser_state));
-	arena_clear(&c->arena[AT_STRING]);
-	arena_clear(&c->arena[AT_TOKENS]);
 	have_lookahead = false;
-	while (run_parse_iteration(c, &parse, &lex, &have_lookahead))
+	while (run_parse_iteration(c, parse, &lex, &have_lookahead))
 		;
-	parse.flags |= PARSE_LOOKAHEAD_EOF;
-	final_pass(c, &parse, &lex);
-	if (!(parse.flags & PARSE_ERROR) && (parse.flags & PARSE_SAVE_TOKENS))
-		get_here_doc(c, &lex, &parse.here);
-	return (parse);
+	if (!(parse->flags & PARSE_ERROR) && (parse->flags & PARSE_SAVE_TOKENS))
+		get_here_doc(c, &lex, &parse->here);
+}
+
+void	finalize_parse(t_ctx *c, t_parser_state *parse)
+{
+	t_lexer_state	lex;
+
+	ft_memset(&lex, 0, sizeof(t_lexer_state));
+	parse->flags |= PARSE_LOOKAHEAD_EOF;
+	final_pass(c, parse, &lex);
+	if (!(parse->flags & PARSE_ERROR) && (parse->flags & PARSE_SAVE_TOKENS))
+		get_here_doc(c, &lex, &parse->here);
+}
+
+void	reset_parser(t_ctx *c, t_parser_state *parse)
+{
+	ft_memset(parse, 0, sizeof(t_parser_state));
+	arena_clear(&c->arena[AT_STACK]);
+	arena_clear(&c->arena[AT_COMMAND]);
+	arena_clear(&c->arena[AT_TOKENS]);
+	arena_clear(&c->arena[AT_STRING]);
 }

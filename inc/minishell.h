@@ -207,7 +207,7 @@ char			**ft_split_key_value(const char *s, char c);
 
 /* -------- token_processor.c ----------------------------------------------- */
 int				process_token(t_ctx *c, t_token *token);
-void			exec_stack(t_ctx *c, t_parser_state *parse);
+void			exec_list(t_ctx *c, uint64_t head_idx);
 
 /* -------- execute_non_builtin.c ----------------------------------------------- */
 int				execute_non_builtin(t_ctx *c, t_command_ctx *cmd_ctx);
@@ -226,7 +226,9 @@ int				pwd(t_ctx *c, t_command_ctx *command_ctx);
 char			*get_pwd(t_ctx *c);
 
 /* -------- parse_input.c --------------------------------------------------- */
-t_parser_state	parse_input(t_ctx *c);
+void			parse_input(t_ctx *c, t_parser_state *parse);
+void			finalize_parse(t_ctx *c, t_parser_state *parse);
+void			reset_parser(t_ctx *c, t_parser_state *parse);
 
 /* -------- classify_token.c -------------------------------------------------- */
 t_symbol_type	classify_token(t_ctx *c, t_token *token);

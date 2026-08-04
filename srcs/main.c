@@ -65,6 +65,7 @@ int	main(int argc, char **argv, char **envp)
 #ifdef DEBUG
 	parse_debug_args(argc, argv, &c);
 #endif
+	ft_memset(&parse, 0, sizeof(t_parser_state));
 	while (true)
 	{
 		if (!get_user_input(&c, INPUT_DEFAULT))
@@ -86,7 +87,12 @@ int	main(int argc, char **argv, char **envp)
 			print_arena(&c.arena[AT_PROMPT]);
 		}
 #endif
-		parse = parse_input(&c);
+		parse_input(&c, &parse);
+		if (parse.flags & PARSE_ERROR)
+		{
+			c.return_status = 2;
+			reset_parser(&c, &parse);
+		}
 #ifdef DEBUG
 		if (c.scope & SCOPE_TOKENS)
 			print_tokens(stdout, &c);
@@ -100,17 +106,10 @@ int	main(int argc, char **argv, char **envp)
 			print_nodes(stdout, &c);
 		else
 			print_arena(&c.arena[AT_COMMAND]);
-		if (!c.no_exec)
 #endif
-		{
-			if (!(parse.flags & PARSE_ERROR))
-				exec_stack(&c, &parse);
-			else
-				c.return_status = 2;
-		}
-		clear_arenas(&c);
 		free(c.read_line);
 	}
+	finalize_parse(&c, &parse);
 	cleanup(&c);
 	return (c.return_status);
 }

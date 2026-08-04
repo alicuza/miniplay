@@ -123,16 +123,11 @@ The shell executes a function (see 2.9.5 Function Definition Command), built-in 
 
 The shell optionally waits for the command to complete and collects the exit status (see 2.8.2 Exit Status for Commands).
 */
-void	execute(t_ctx *c, t_parser_state *parse)
+void	exec_list(t_ctx *c, uint64_t head_idx)
 {
-	t_arena		*stack;
-	t_symbol	*symbol;
 	t_node		*pipeline_node;
 
-	(void)parse;
-	stack = &(c->arena[AT_STACK]);
-	symbol = get_ptr_from_offset(stack, stack->offset - stack->stride);
-	pipeline_node = get_ptr_from_idx(&c->arena[AT_COMMAND], symbol->node_idx);
+	pipeline_node = get_ptr_from_idx(&c->arena[AT_COMMAND], head_idx);
 	while (pipeline_node)
 	{
 		// TODO nik: walk the arg chain and redirection chain of
@@ -142,9 +137,4 @@ void	execute(t_ctx *c, t_parser_state *parse)
 				pipeline_node->data.pipeline.next_idx)
 			: NULL;
 	}
-}
-
-void	exec_stack(t_ctx *c, t_parser_state *parse)
-{
-	execute(c, parse); // Execute stuff after parser is done
 }

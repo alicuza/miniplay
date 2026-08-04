@@ -705,6 +705,10 @@ static t_lalr_action	reduce(t_ctx *c, t_parser_state *parse, int32_t action)
 		node_idx = 0;
 		token_idx = parse->token_idx;
 	}
+	if (action == 4)					/* complete_commands: complete_commands separator list */
+		parse->exec_idx = stack_at(c, parse, &rule, 2)->node_idx;
+	else if (action == 5)				/* complete_commands: list */
+		parse->exec_idx = stack_at(c, parse, &rule, 0)->node_idx;
 	pop(c, parse, rule.rhs_len);
 	lhs = rule.lhs_type - NTERM_OFFSET;
 	index = get_yypgoto(lhs) + parse->state;
