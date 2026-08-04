@@ -28,6 +28,7 @@ void		print_flags(FILE *out, uint32_t flags);
 void		print_token(FILE *out, t_ctx *c, t_token *token);
 void		print_token_line(FILE *out, t_ctx *c, t_token *token);
 void		print_symbol(t_ctx *c, t_symbol *symbol, uint64_t idx);
+void		print_stack(t_ctx *c, t_parser_state *parse);
 void		print_symbol_line(FILE *out, t_ctx *c, t_symbol *symbol, uint64_t idx);
 void		print_tokens(t_ctx *c);
 void		print_symbols(t_ctx *c, t_parser_state *parse);

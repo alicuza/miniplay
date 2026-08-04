@@ -21,13 +21,31 @@ void	print_symbol(t_ctx *c, t_symbol *symbol, uint64_t idx)
 	tokens = &c->arena[AT_TOKENS];
 	input = &c->arena[AT_STRING];
 	token = get_ptr_from_idx(tokens, symbol->token_idx);
-	fprintf(stderr, "\n--- symbol ---\n");
 	fprintf(stderr, "  [%lu]  %s(", idx, get_symbol_type_name(symbol->type));
 	print_escaped_str(stderr, input->buf + token->offset);
 	fprintf(stderr, ")  {  token_idx = %lu state = %u  node_idx = %lu  flags = ",
 		symbol->token_idx, symbol->entry_state, symbol->node_idx);
 	print_flags(stderr, token->flags);
 	fprintf(stderr, "  }\n");
+}
+
+void	print_stack(t_ctx *c, t_parser_state *parse)
+{
+	uint64_t	phys;
+	t_symbol	*symbol;
+	t_arena		*stack;
+
+	stack = &c->arena[AT_STACK];
+	fprintf(stderr, "\n--- stack ---\n");
+	fprintf(stderr, "--- top -----\n");
+	phys = parse->stack_idx;
+	while (phys)
+	{
+		symbol = get_ptr_from_idx(stack, phys);
+		print_symbol(c, symbol, phys);
+		--phys;
+	}
+	fprintf(stderr, "--- bottom ----\n");
 }
 
 void	print_symbol_line(FILE *out, t_ctx *c, t_symbol *symbol, uint64_t idx)
