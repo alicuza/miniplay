@@ -17,6 +17,7 @@
 # include "types.h"
 
 const char	*get_arena_name(t_arena *arena);
+const char	*get_parse_flag_name(uint32_t bit);
 const char	*get_flag_name(uint32_t bit);
 const char	*get_node_flag_name(uint32_t bit);
 const char	*get_node_type_name(t_node_type type);
@@ -31,12 +32,13 @@ void		print_token_line(FILE *out, t_ctx *c, t_token *token);
 void		print_symbol(t_ctx *c, t_symbol *symbol, uint64_t idx);
 void		print_stack(t_ctx *c, t_parser_state *parse);
 void		print_symbol_line(FILE *out, t_ctx *c, t_symbol *symbol, uint64_t idx);
-void		print_tokens(t_ctx *c);
-void		print_symbols(t_ctx *c, t_parser_state *parse);
+void		print_tokens(FILE *out, t_ctx *c);
+void		print_symbols(FILE *out, t_ctx *c, t_parser_state *parse);
 void		print_node_line(FILE *out, t_ctx *c, t_node *node, uint64_t idx);
-void		print_nodes(t_ctx *c);
+void		print_nodes(FILE *out, t_ctx *c);
 void		print_lex_state(t_ctx *c, t_lexer_state *l);
 void		print_char_info(unsigned char ch);
 void		print_escaped_str(FILE *out, const char *str);
+void		print_escaped_strn(FILE *out, const char *str, size_t len);
 
 #endif

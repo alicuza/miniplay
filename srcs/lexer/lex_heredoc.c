@@ -107,6 +107,10 @@ bool	handle_here_body(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
 	t_symbol	*symbol;
 
 	stack = &c->arena[AT_STACK];
+#ifdef DEBUG
+	if (c->states & DBG_HEREDOC)
+		fprintf(stderr, "--- heredoc --- reading body until delimiter\n");
+#endif
 	get_here_doc(c, lex, &parse->here);
 	parse->flags &= ~PARSE_HERE_BODY;
 	parse->flags |= PARSE_HAS_SAVED_TOKENS;
@@ -122,6 +126,11 @@ bool	handle_saved_tokens(t_ctx *c, t_parser_state *parse)
 
 	tokens = &c->arena[AT_TOKENS];
 	next = get_ptr_from_idx(tokens, parse->token_idx + 1);
+#ifdef DEBUG
+	if (c->states & DBG_HEREDOC)
+		fprintf(stderr, "--- heredoc --- replaying saved token %lu\n",
+			parse->token_idx + 1);
+#endif
 	if (next->flags & TKN_IS_HERE_BODY) // TODO: figure out if this is the correct place to write the heredoc to a tmp file
 	{
 		parse->flags &= ~PARSE_HAS_SAVED_TOKENS;

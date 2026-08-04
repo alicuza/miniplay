@@ -12,6 +12,20 @@
 
 #include "minishell.h"
 
+/* leaf non-terminals wrap a single WORD and keep its content */
+static bool	symbol_has_content(t_symbol_type type)
+{
+	if (type == SYM_CMD_NAME || type == SYM_CMD_WORD
+		|| type == SYM_FILENAME || type == SYM_HERE_END
+		|| type == SYM_WORD || type == SYM_NEWLINE
+		|| type == SYM_PIPE || type == SYM_LESS || type == SYM_GREAT
+		|| type == SYM_DLESS || type == SYM_DGREAT
+		|| type == SYM_AND_IF || type == SYM_OR_IF
+		|| type == SYM_OPAR || type == SYM_CPAR)
+		return (true);
+	return (false);
+}
+
 void	print_symbol(t_ctx *c, t_symbol *symbol, uint64_t idx)
 {
 	t_arena	*tokens;
@@ -24,8 +38,10 @@ void	print_symbol(t_ctx *c, t_symbol *symbol, uint64_t idx)
 	fprintf(stderr, "%lu %s(", idx, get_symbol_type_name(symbol->type));
 	if (symbol->type == SYM_LINEBREAK && input->buf[token->offset] != '\n')
 		fprintf(stderr, "epsilon");
-	else
+	else if (symbol_has_content(symbol->type))
 		print_escaped_str(stderr, input->buf + token->offset);
+	else
+		fprintf(stderr, "node %lu", symbol->node_idx);
 	fprintf(stderr, ") { node_idx = %lu flags = ", symbol->node_idx);
 	print_flags(stderr, token->flags);
 	fprintf(stderr, " }\n");
@@ -71,18 +87,16 @@ void	print_symbol_line(FILE *out, t_ctx *c, t_symbol *symbol, uint64_t idx)
 	fprintf(out, "%lu %s(", idx, get_symbol_type_name(symbol->type));
 	if (symbol->type == SYM_LINEBREAK && input->buf[token->offset] != '\n')
 		fprintf(out, "epsilon");
-	else
+	else if (symbol_has_content(symbol->type))
 		print_escaped_str(out, input->buf + token->offset);
+	else
+		fprintf(out, "node %lu", symbol->node_idx);
 	fprintf(out, ") { node_idx = %lu flags = ", symbol->node_idx);
-	if (token->flags)
-	{
-		fprintf(out, " ");
-		print_flags(out, token->flags);
-	}
+	print_flags(out, token->flags);
 	fprintf(out, " }\n");
 }
 
-void	print_tokens(t_ctx *c)
+void	print_tokens(FILE *out, t_ctx *c)
 {
 	t_arena	*tokens;
 	t_token	*token;
@@ -95,17 +109,17 @@ void	print_tokens(t_ctx *c)
 	count = (tokens->offset - tokens->stride) / tokens->stride;
 	if (count == 0)
 		return ;
-	fprintf(stderr, "\n--- tokens ---\n");
+	fprintf(out, "\n--- tokens ---\n");
 	i = 1;
 	while (i <= count)
 	{
 		token = get_ptr_from_idx(tokens, i);
-		print_token_line(stdout, c, token);
+		print_token_line(out, c, token);
 		++i;
 	}
 }
 
-void	print_symbols(t_ctx *c, t_parser_state *parse)
+void	print_symbols(FILE *out, t_ctx *c, t_parser_state *parse)
 {
 	t_arena	*stack;
 	t_symbol	*symbol;
@@ -122,12 +136,12 @@ void	print_symbols(t_ctx *c, t_parser_state *parse)
 	count = (top - 1) / stack->stride + 1;
 	if (count == 0)
 		return ;
-	fprintf(stderr, "\n--- symbols ---\n");
+	fprintf(out, "\n--- symbols ---\n");
 	i = 1;
 	while (i <= count)
 	{
 		symbol = get_ptr_from_idx(stack, i);
-		print_symbol_line(stdout, c, symbol, i);
+		print_symbol_line(out, c, symbol, i);
 		++i;
 	}
 }
@@ -209,7 +223,7 @@ void	print_node_line(FILE *out, t_ctx *c, t_node *node, uint64_t idx)
 	fprintf(out, "\n");
 }
 
-void	print_nodes(t_ctx *c)
+void	print_nodes(FILE *out, t_ctx *c)
 {
 	t_arena	*commands;
 	t_node	*node;
@@ -222,12 +236,12 @@ void	print_nodes(t_ctx *c)
 	count = (commands->offset - commands->stride) / commands->stride;
 	if (count == 0)
 		return ;
-	fprintf(stderr, "\n--- nodes ---\n");
+	fprintf(out, "\n--- nodes ---\n");
 	i = 1;
 	while (i <= count)
 	{
 		node = get_ptr_from_idx(commands, i);
-		print_node_line(stderr, c, node, i);
+		print_node_line(out, c, node, i);
 		++i;
 	}
 }

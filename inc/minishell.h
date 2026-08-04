@@ -103,6 +103,20 @@
 #  define SCOPE_TOKENS 0x01
 #  define SCOPE_STACK 0x02
 #  define SCOPE_COMMAND 0x04
+
+/* -------- debug state flags (--states=) ----------------------------------- */
+#  define DBG_LEXER 0x01
+#  define DBG_PARSER 0x02
+#  define DBG_HEREDOC 0x04
+#  define DBG_ALL_STATES 0x07
+
+/* -------- debug arena flags (--arenas=) ----------------------------------- */
+#  define DBG_ARENA_PROMPT 0x01
+#  define DBG_ARENA_STRING 0x02
+#  define DBG_ARENA_TOKENS 0x04
+#  define DBG_ARENA_STACK 0x08
+#  define DBG_ARENA_COMMAND 0x10
+#  define DBG_ARENA_ALL 0x1f
 #endif
 
 /* -------- grammar constants ----------------------------------------------- */

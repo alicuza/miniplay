@@ -28,11 +28,18 @@ void	print_char_info(unsigned char c)
 
 void	print_escaped_str(FILE* out, const char *s)
 {
-	unsigned char	c;
+	print_escaped_strn(out, s, ft_strlen(s));
+}
 
-	while (*s)
+void	print_escaped_strn(FILE *out, const char *s, size_t n)
+{
+	unsigned char	c;
+	size_t			i;
+
+	i = 0;
+	while (i < n)
 	{
-		c = (unsigned char)*s;
+		c = (unsigned char)s[i];
 		if (c == '\n')
 			fprintf(out, "\\n");
 		else if (c == '\\')
@@ -43,15 +50,62 @@ void	print_escaped_str(FILE* out, const char *s)
 			fputc(' ', out);
 		else
 			fputc('.', out);
-		++s;
+		++i;
+	}
+}
+
+static void	parse_list(const char *spec, uint8_t *mask, const char **names,
+		const uint8_t *bits, uint8_t all)
+{
+	uint64_t	len;
+	uint64_t	i;
+	uint64_t	pos;
+
+	pos = 0;
+	while (spec[pos])
+	{
+		len = 0;
+		while (spec[pos + len] && spec[pos + len] != ',')
+			++len;
+		if (len == 3 && !ft_strncmp(spec + pos, "all", 3))
+			*mask |= all;
+		else if (len == 4 && !ft_strncmp(spec + pos, "none", 4))
+			*mask = 0;
+		else if (len == 2 && !ft_strncmp(spec + pos, "no", 2))
+			*mask = 0;
+		else
+		{
+			i = 0;
+			while (names[i])
+			{
+				if (ft_strlen(names[i]) == len
+					&& !ft_strncmp(spec + pos, names[i], len))
+				{
+					*mask |= bits[i];
+					break ;
+				}
+				++i;
+			}
+		}
+		pos += len;
+		if (spec[pos] == ',')
+			++pos;
 	}
 }
 
 void	parse_debug_args(int argc, char **argv, t_ctx *c)
 {
+	static const char	*state_names[] = {"lexer", "parser", "here", NULL};
+	static const uint8_t	state_bits[] = {DBG_LEXER, DBG_PARSER, DBG_HEREDOC};
+	static const char	*arena_names[] = {"prompt", "string", "tokens", "stack",
+							"command", NULL};
+	static const uint8_t	arena_bits[] = {DBG_ARENA_PROMPT, DBG_ARENA_STRING,
+							DBG_ARENA_TOKENS, DBG_ARENA_STACK, DBG_ARENA_COMMAND};
 	size_t	len;
 	int		i;
 
+	c->states = DBG_ALL_STATES;
+	c->arenas = DBG_ARENA_ALL;
 	i = 1;
 	while (i < argc)
 	{
@@ -69,6 +123,21 @@ void	parse_debug_args(int argc, char **argv, t_ctx *c)
 			if (!c->scope)
 				fprintf(stderr, "--scope: '%s' matched no scope\n", argv[i] + 8);
 		}
+		else if (len > 8 && !ft_strncmp(argv[i], "--tests=", 8))
+		{
+			parse_list(argv[i] + 8, &c->scope,
+				(const char *[]){"tokens", "stack", "command", NULL},
+				(uint8_t[]){SCOPE_TOKENS, SCOPE_STACK, SCOPE_COMMAND},
+				SCOPE_TOKENS | SCOPE_STACK | SCOPE_COMMAND);
+			if (!c->scope)
+				fprintf(stderr, "--tests: '%s' matched no scope\n", argv[i] + 8);
+		}
+		else if (len > 9 && !ft_strncmp(argv[i], "--states=", 9))
+			parse_list(argv[i] + 9, &c->states, state_names, state_bits,
+				DBG_ALL_STATES);
+		else if (len > 9 && !ft_strncmp(argv[i], "--arenas=", 9))
+			parse_list(argv[i] + 9, &c->arenas, arena_names, arena_bits,
+				DBG_ARENA_ALL);
 	++i;
 	}
 }

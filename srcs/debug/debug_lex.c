@@ -47,8 +47,11 @@ void	print_lex_state(t_ctx *c, t_lexer_state *l)
 	print_char_info(ch);
 	fprintf(stderr, "  %s", get_token_type_name(l->type));
 	if (l->flags & LEX_IS_BUILDING)
-		fprintf(stderr, "(%.*s)", (int)l->token.len,
-			c->read_line + l->token.pos);
+	{
+		fprintf(stderr, "(");
+		print_escaped_strn(stderr, c->read_line + l->token.pos, l->token.len);
+		fprintf(stderr, ")");
+	}
 	fprintf(stderr, "  {  token.pos = %lu  token.len = %lu  flags = ",
 		l->token.pos, l->token.len);
 	print_flags(stderr, l->flags);

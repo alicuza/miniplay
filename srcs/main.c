@@ -75,23 +75,29 @@ int	main(int argc, char **argv, char **envp)
 			continue ;
 		}
 #ifdef DEBUG
-		fprintf(stderr, "\n--- read_line ---\n");
-		fprintf(stderr, "%s\n", c.read_line);
-		fprintf(stderr, "\n--- prompt arena after get_prompt ---\n");
-		print_arena(&c.arena[AT_PROMPT]);
+		if (c.states & DBG_PARSER)
+		{
+			fprintf(stderr, "\n--- read_line ---\n");
+			fprintf(stderr, "%s\n", c.read_line);
+		}
+		if (c.arenas & DBG_ARENA_PROMPT)
+		{
+			fprintf(stderr, "\n--- prompt arena after get_prompt ---\n");
+			print_arena(&c.arena[AT_PROMPT]);
+		}
 #endif
 		parse = parse_input(&c);
 #ifdef DEBUG
 		if (c.scope & SCOPE_TOKENS)
-			print_tokens(&c);
+			print_tokens(stdout, &c);
 		else
 			print_arena(&c.arena[AT_TOKENS]);
 		if (c.scope & SCOPE_STACK)
-			print_symbols(&c, &parse);
+			print_symbols(stdout, &c, &parse);
 		else
 			print_arena(&c.arena[AT_STACK]);
 		if (c.scope & SCOPE_COMMAND)
-			print_nodes(&c);
+			print_nodes(stdout, &c);
 		else
 			print_arena(&c.arena[AT_COMMAND]);
 		if (!c.no_exec)

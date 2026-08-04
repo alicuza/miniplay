@@ -59,6 +59,10 @@ static bool	get_lookahead(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
 	{
 		if (parse->flags & PARSE_SAVE_TOKENS)
 		{
+#ifdef DEBUG
+			if (c->states & DBG_PARSER)
+				fprintf(stderr, "--- parse --- saved tokens exhausted -> HERE_BODY mode\n");
+#endif
 			parse->flags &= ~PARSE_SAVE_TOKENS;
 			parse->flags |= PARSE_HERE_BODY;
 		}
@@ -74,6 +78,10 @@ static bool	handle_here_doc(t_ctx *c, t_parser_state *parse)
 	cur = get_ptr_from_idx(&c->arena[AT_TOKENS], parse->token_idx);
 	if (c->arena[AT_STRING].buf[cur->offset] == '\n')
 	{
+#ifdef DEBUG
+		if (c->states & DBG_PARSER)
+			fprintf(stderr, "--- parse --- newline seen -> HERE_BODY mode\n");
+#endif
 		parse->flags &= ~PARSE_SAVE_TOKENS;
 		parse->flags |= PARSE_HERE_BODY;
 	}
@@ -85,8 +93,34 @@ static void	debug_print_lookahead(t_ctx *c, t_parser_state *parse)
 {
 	fprintf(stderr, "\n--- lookahead ---\n");
 	print_token(stderr, c, get_ptr_from_idx(&c->arena[AT_TOKENS], parse->token_idx));
-	print_arena(&c->arena[AT_STRING]);
-	print_arena(&c->arena[AT_TOKENS]);
+	if (c->arenas & DBG_ARENA_STRING)
+		print_arena(&c->arena[AT_STRING]);
+	if (c->arenas & DBG_ARENA_TOKENS)
+		print_arena(&c->arena[AT_TOKENS]);
+}
+
+static void	debug_parse_header(t_parser_state *parse)
+{
+	uint32_t	bit;
+	uint8_t		flags;
+
+	fprintf(stderr, "\n--- parse ---  token_idx = %lu  flags =", parse->token_idx);
+	flags = parse->flags;
+	bit = 1;
+	while (bit && !(flags & bit))
+		bit <<= 1;
+	if (!bit)
+		fprintf(stderr, " (none)");
+	while (bit)
+	{
+		if (flags & bit)
+		{
+			fprintf(stderr, " %s", get_parse_flag_name(bit));
+			flags ^= bit;
+		}
+		bit <<= 1;
+	}
+	fprintf(stderr, "\n");
 }
 #endif
 
@@ -113,6 +147,9 @@ static bool	run_parse_iteration(t_ctx *c, t_parser_state *parse, t_lexer_state *
 {
 	t_lalr_action	action;
 
+#ifdef DEBUG
+	debug_parse_header(parse);
+#endif
 	if (!*have_lookahead && !get_lookahead(c, parse, lex))
 		return (false);
 	*have_lookahead = true;
@@ -126,9 +163,12 @@ static bool	run_parse_iteration(t_ctx *c, t_parser_state *parse, t_lexer_state *
 #endif
 	action = shift_reduce(c, parse, lex);
 #ifdef DEBUG
-	print_stack(c, parse);
-	if (action == LALR_REDUCE || action == LALR_ACCEPT)
-		print_nodes(c);
+	if (c->states & DBG_PARSER)
+	{
+		print_stack(c, parse);
+		if (action == LALR_REDUCE || action == LALR_ACCEPT)
+			print_nodes(stderr, c);
+	}
 #endif
 	return (parse_advance(c, parse, have_lookahead, action));
 }

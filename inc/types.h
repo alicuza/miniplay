@@ -45,6 +45,8 @@ typedef struct s_ctx
 	bool	is_interactive;
 # ifdef DEBUG
 	uint8_t	scope;		/* SCOPE_TOKENS | SCOPE_STACK | SCOPE_COMMAND */
+	uint8_t	states;		/* DBG_LEXER | DBG_PARSER | DBG_HEREDOC */
+	uint8_t	arenas;		/* DBG_ARENA_* mask */
 	bool	no_exec;	/* TODO: do i actually need this? */
 # endif
 }	t_ctx;

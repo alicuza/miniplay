@@ -134,6 +134,23 @@ const char	*get_node_flag_name(uint32_t bit)
 	return ("UNKNOWN");
 }
 
+const char	*get_parse_flag_name(uint32_t bit)
+{
+	if (bit == PARSE_DONE)
+		return ("PARSE_DONE");
+	else if (bit == PARSE_SAVE_TOKENS)
+		return ("PARSE_SAVE_TOKENS");
+	else if (bit == PARSE_HAS_SAVED_TOKENS)
+		return ("PARSE_HAS_SAVED_TOKENS");
+	else if (bit == PARSE_HERE_BODY)
+		return ("PARSE_HERE_BODY");
+	else if (bit == PARSE_ERROR)
+		return ("PARSE_ERROR");
+	else if (bit == PARSE_LOOKAHEAD_EOF)
+		return ("PARSE_LOOKAHEAD_EOF");
+	return ("UNKNOWN");
+}
+
 const char	*get_flag_name(uint32_t bit)
 {
 	if (bit == TKN_HAS_QUOTES)
