@@ -53,7 +53,7 @@ static void	report_parse_error(t_ctx *c, t_parser_state *parse)
 		printf("minishell: syntax error near unexpected token '%s'\n", body);
 }
 
-static bool	fetch_lookahead(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
+static bool	get_lookahead(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
 {
 	if (!get_next_token(c, parse, lex))
 	{
@@ -67,7 +67,7 @@ static bool	fetch_lookahead(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
 	return (true);
 }
 
-static bool	handle_divert(t_ctx *c, t_parser_state *parse)
+static bool	handle_here_doc(t_ctx *c, t_parser_state *parse)
 {
 	t_token	*cur;
 
@@ -90,7 +90,7 @@ static void	debug_print_lookahead(t_ctx *c, t_parser_state *parse)
 }
 #endif
 
-static bool	process_action(t_ctx *c, t_parser_state *parse, bool *have_lookahead, t_lalr_action action)
+static bool	parse_advance(t_ctx *c, t_parser_state *parse, bool *have_lookahead, t_lalr_action action)
 {
 	if (action == LALR_REDUCE)
 		return (true);
@@ -113,19 +113,19 @@ static bool	run_parse_iteration(t_ctx *c, t_parser_state *parse, t_lexer_state *
 {
 	t_lalr_action	action;
 
-	if (!*have_lookahead && !fetch_lookahead(c, parse, lex))
+	if (!*have_lookahead && !get_lookahead(c, parse, lex))
 		return (false);
 	*have_lookahead = true;
 	if (parse->flags & PARSE_SAVE_TOKENS)
 	{
 		*have_lookahead = false;
-		return (handle_divert(c, parse));
+		return (handle_here_doc(c, parse));
 	}
 #ifdef DEBUG
 	debug_print_lookahead(c, parse);
 #endif
 	action = shift_reduce(c, parse, lex);
-	return (process_action(c, parse, have_lookahead, action));
+	return (parse_advance(c, parse, have_lookahead, action));
 }
 
 static void	final_pass(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
