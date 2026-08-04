@@ -44,7 +44,7 @@ typedef struct s_ctx
 	int		return_status;
 	bool	is_interactive;
 # ifdef DEBUG
-	uint8_t	scope;		/* SCOPE_TOKEN | SCOPE_SYMBOLS | SCOPE_STACK | SCOPE_COMMAND */
+	uint8_t	scope;		/* SCOPE_TOKENS | SCOPE_SYMBOLS | SCOPE_STACK | SCOPE_COMMAND */
 	bool	no_exec;	/* TODO: do i actually need this? */
 # endif
 }	t_ctx;

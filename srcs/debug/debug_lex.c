@@ -72,3 +72,30 @@ void	print_token(FILE *out, t_ctx *c, t_token *token)
 	fprintf(stderr, "  }");
 	fprintf(out, "\n");
 }
+
+void	print_token_line(FILE *out, t_ctx *c, t_token *token)
+{
+	t_arena	*input;
+	uint32_t	bit;
+
+	input = &(c->arena[AT_STRING]);
+	fprintf(out, "%s(", get_token_type_name(token->type));
+	print_escaped_str(out, input->buf + token->offset);
+	fprintf(out, ")");
+	if (token->flags)
+	{
+		bit = 1;
+		while (bit && !(token->flags & bit))
+			bit <<= 1;
+		while (bit)
+		{
+			if (token->flags & bit)
+			{
+				fprintf(out, " %s", get_flag_name(bit));
+				token->flags ^= bit;
+			}
+			bit <<= 1;
+		}
+	}
+	fprintf(out, "\n");
+}

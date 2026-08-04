@@ -183,10 +183,7 @@ test_redir_heredoc()
 			TKN_OPERATOR(<<)
 			TKN_WORD(EOF)
 			TKN_OPERATOR(\n)
-			TKN_WORD(hello)
-			TKN_OPERATOR(\n)
-			TKN_WORD(EOF)
-			TKN_OPERATOR(\n)
+			TKN_WORD(hello\n) TKN_IS_HERE_BODY
 		eof
 	)"
 	assert_shell "$input" "$expected"

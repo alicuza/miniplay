@@ -82,7 +82,14 @@ int	main(int argc, char **argv, char **envp)
 #endif
 		parse = parse_input(&c);
 #ifdef DEBUG
-		print_complete_stack(&c, &parse);
+		if (c.scope & SCOPE_TOKENS)
+			print_tokens(&c);
+		else
+			print_arena(&c.arena[AT_TOKENS]);
+		if (c.scope & SCOPE_STACK)
+			print_arena(&c.arena[AT_STACK]);
+		if (c.scope & SCOPE_COMMAND)
+			print_arena(&c.arena[AT_COMMAND]);
 		if (!c.no_exec)
 #endif
 		{

@@ -60,14 +60,15 @@ void	parse_debug_args(int argc, char **argv, t_ctx *c)
 			c->no_exec = true;
 		else if (len > 8 && !ft_strncmp(argv[i], "--scope=", 8))
 		{
-			if (ft_strnstr(argv[i], "tokens", ft_strlen(argv[i])))
+			if (ft_strnstr(argv[i], "tokens", len))
 				c->scope |= SCOPE_TOKENS;
-/*	TODO: to add when appropriate functions have been written and need testing.
- *			if (ft_strnstr(argv[i], "reducer", ft_strlen(argv[i])))
- *				c->scope |= SCOPE_REDUCER;
- *			if (ft_strnstr(argv[i], "stack", ft_strlen(argv[i])))
- *				c->scope |= SCOPE_STACK;
- */			if (!c->scope)
+			else if (ft_strnstr(argv[i], "stack", len))
+				c->scope |= SCOPE_STACK;
+			else if (ft_strnstr(argv[i], "command", len))
+				c->scope |= SCOPE_COMMAND;
+			else if (ft_strnstr(argv[i], "symbols", len))
+				c->scope |= SCOPE_SYMBOLS;
+			if (!c->scope)
 				fprintf(stderr, "--scope: '%s' matched no scope\n", argv[i] + 8);
 		}
 	++i;

@@ -6,7 +6,7 @@
 /*   By: sancuta <sancuta@student.42vienna.com>     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/12 11:08:25 by sancuta           #+#    #+#             */
-/*   Updated: 2026/07/22 10:36:13 by sancuta          ###   ########.fr       */
+/*   Updated: 2026-08-04 14:25:00 by nribakov          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,21 +30,25 @@ void	print_symbol(t_ctx *c, t_symbol *symbol, uint64_t idx)
 	fprintf(stderr, "  }\n");
 }
 
-void	print_complete_stack(t_ctx *c, t_parser_state *parse)
+void	print_tokens(t_ctx *c)
 {
-	uint64_t	phys;
-	t_symbol		*symbol;
-	t_arena		*stack;
+	t_arena	*tokens;
+	t_token	*token;
+	uint64_t	count;
+	uint64_t	i;
 
-	stack = &c->arena[AT_STACK];
-	fprintf(stderr, "\n--- complete stack ---\n");
-	fprintf(stderr, "--- top -------------\n");
-	phys = parse->stack_idx;
-	while (phys)
+	tokens = &c->arena[AT_TOKENS];
+	if (tokens->cap == 0)
+		return ;
+	count = (tokens->offset - tokens->stride) / tokens->stride;
+	if (count == 0)
+		return ;
+	fprintf(stderr, "\n--- tokens ---\n");
+	i = 1;
+	while (i <= count)
 	{
-		symbol = get_ptr_from_idx(stack, phys);
-		print_symbol(c, symbol, phys);
-		--phys;
+		token = get_ptr_from_idx(tokens, i);
+		print_token_line(stdout, c, token);
+		++i;
 	}
-	fprintf(stderr, "--- bottom ----------\n");
 }
