@@ -80,6 +80,35 @@ static bool	handle_divert(t_ctx *c, t_parser_state *parse)
 	return (true);
 }
 
+#ifdef DEBUG
+static void	debug_print_lookahead(t_ctx *c, t_parser_state *parse)
+{
+	fprintf(stderr, "\n--- lookahead ---\n");
+	print_token(stderr, c, get_ptr_from_idx(&c->arena[AT_TOKENS], parse->token_idx));
+	print_arena(&c->arena[AT_STRING]);
+	print_arena(&c->arena[AT_TOKENS]);
+}
+#endif
+
+static bool	process_action(t_ctx *c, t_parser_state *parse, bool *have_lookahead, t_lalr_action action)
+{
+	if (action == LALR_REDUCE)
+		return (true);
+	if (action == LALR_SHIFT)
+	{
+		*have_lookahead = false;
+		return (true);
+	}
+	if (action == LALR_ACCEPT)
+	{
+		parse->flags |= PARSE_DONE;
+		return (false);
+	}
+	report_parse_error(c, parse);
+	*have_lookahead = false;
+	return (false);
+}
+
 static bool	run_parse_iteration(t_ctx *c, t_parser_state *parse, t_lexer_state *lex, bool *have_lookahead)
 {
 	t_lalr_action	action;
@@ -93,28 +122,10 @@ static bool	run_parse_iteration(t_ctx *c, t_parser_state *parse, t_lexer_state *
 		return (handle_divert(c, parse));
 	}
 #ifdef DEBUG
-	fprintf(stderr, "\n--- lookahead ---\n");
-	print_token(stderr, c, get_ptr_from_idx(&c->arena[AT_TOKENS], parse->token_idx));
-	print_arena(&c->arena[AT_STRING]);
-	print_arena(&c->arena[AT_TOKENS]);
+	debug_print_lookahead(c, parse);
 #endif
 	action = shift_reduce(c, parse, lex);
-	if (action == LALR_REDUCE)
-		return (true);
-	if (action == LALR_SHIFT)
-	{
-		*have_lookahead = false;
-		return (true);
-	}
-	if (action == LALR_ACCEPT)
-	{
-		parse->flags |= PARSE_DONE;
-		return (false);
-	}
-	if (action == LALR_ERROR)
-		report_parse_error(c, parse);
-	*have_lookahead = false;
-	return (false);
+	return (process_action(c, parse, have_lookahead, action));
 }
 
 static void	final_pass(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
