@@ -6,63 +6,81 @@
 #define NTERM_OFFSET 14
 
 /* -------- LALR tables, regenerated from shni_grammar_reduced.y ----------- */
-static const int32_t yypact[] =
+static inline int32_t	get_yypact(uint64_t idx)
 {
-	  8,  -44,   18,   21,   33,  -44,  -44,  -44,   14,   14,
-	 30,   14,    8,    8,   17,   16,  -44,   58,  -44,   40,
-	 47,  -44,  -44,  -44,  -44,  -44,  -44,  -44,  -44,  -44,
-	 24,   33,    7,  -44,    8,    8,    8,   58,  -44,  -44,
-	 54,  -44,  -44,   40,  -44,  -44,   17,    8,   17,   33,
-	 33,   33,  -44,  -44,  -44,   54,    7,   16,   16,  -44,
-	 17
-};
+	static const int32_t	yypact[] = {
+		  8,  -44,   18,   21,   33,  -44,  -44,  -44,   14,   14,
+		 30,   14,    8,    8,   17,   16,  -44,   58,  -44,   40,
+		 47,  -44,  -44,  -44,  -44,  -44,  -44,  -44,  -44,  -44,
+		 24,   33,    7,  -44,    8,    8,    8,   58,  -44,  -44,
+		 54,  -44,  -44,   40,  -44,  -44,   17,    8,   17,   33,
+		 33,   33,  -44,  -44,  -44,   54,    7,   16,   16,  -44,
+		 17
+	};
+	return (yypact[idx]);
+}
 
-static const int32_t yydefact[] =
+static inline int32_t	get_yydefact(uint64_t idx)
 {
-	 45,   42,    0,   44,    3,    1,   43,   24,    0,    0,
-	  0,    0,   45,   45,    5,    6,    9,   12,   11,   23,
-	 21,   26,   34,   35,   39,   36,   37,   41,   40,   38,
-	  0,    0,   44,    2,   45,   45,   45,   13,   32,   30,
-	 22,   28,   25,   20,   27,   14,   18,   15,    4,    0,
-	  0,    0,   33,   31,   29,   19,   16,    7,    8,   10,
-	 17
-};
+	static const int32_t	yydefact[] = {
+		 45,   42,    0,   44,    3,    1,   43,   24,    0,    0,
+		  0,    0,   45,   45,    5,    6,    9,   12,   11,   23,
+		 21,   26,   34,   35,   39,   36,   37,   41,   40,   38,
+		  0,    0,   44,    2,   45,   45,   45,   13,   32,   30,
+		 22,   28,   25,   20,   27,   14,   18,   15,    4,    0,
+		  0,    0,   33,   31,   29,   19,   16,    7,    8,   10,
+		 17
+	};
+	return (yydefact[idx]);
+}
 
-static const int32_t yypgoto[] =
+static inline int32_t	get_yypgoto(uint64_t idx)
 {
-	-44,  -44,  -44,  -27,  -43,   -7,  -44,  -44,  -44,  -44,
-	-44,  -44,  -44,   -9,  -44,  -17,  -44,   13,  -44,  -44,
-	-12,   -4
-};
+	static const int32_t	yypgoto[] = {
+		-44,  -44,  -44,  -27,  -43,   -7,  -44,  -44,  -44,  -44,
+		-44,  -44,  -44,   -9,  -44,  -17,  -44,   13,  -44,  -44,
+		-12,   -4
+	};
+	return (yypgoto[idx]);
+}
 
-static const int32_t yydefgoto[] =
+static inline int32_t	get_yydefgoto(uint64_t idx)
 {
-	  0,    2,   13,   14,   15,   16,   17,   30,   47,   18,
-	 19,   43,   20,   40,   37,   21,   22,   25,   23,   28,
-	  3,    4
-};
+	static const int32_t	yydefgoto[] = {
+		  0,    2,   13,   14,   15,   16,   17,   30,   47,   18,
+		 19,   43,   20,   40,   37,   21,   22,   25,   23,   28,
+		  3,    4
+	};
+	return (yydefgoto[idx]);
+}
 
-static const int32_t yytable[] =
+static inline int32_t	get_yytable(uint64_t idx)
 {
-	 38,   32,   41,   44,   46,   48,   57,   58,   31,   33,
-	  7,    6,    1,    8,    9,   10,   11,   24,    5,   12,
-	 52,   36,   26,   54,   29,    6,   41,   34,   35,   60,
-	 49,   50,   51,   27,   55,   56,    7,   45,   54,    8,
-	  9,   10,   11,   39,   59,   12,    8,    9,   10,   11,
-	 42,    0,    0,    8,    9,   10,   11,   53,    0,    0,
-	  8,    9,   10,   11,    8,    9,   10,   11
-};
+	static const int32_t	yytable[] = {
+		 38,   32,   41,   44,   46,   48,   57,   58,   31,   33,
+		  7,    6,    1,    8,    9,   10,   11,   24,    5,   12,
+		 52,   36,   26,   54,   29,    6,   41,   34,   35,   60,
+		 49,   50,   51,   27,   55,   56,    7,   45,   54,    8,
+		  9,   10,   11,   39,   59,   12,    8,    9,   10,   11,
+		 42,    0,    0,    8,    9,   10,   11,   53,    0,    0,
+		  8,    9,   10,   11,    8,    9,   10,   11
+	};
+	return (yytable[idx]);
+}
 
-static const int32_t yycheck[] =
+static inline int32_t	get_yycheck(uint64_t idx)
 {
-	 17,   13,   19,   20,   31,   32,   49,   50,   12,   13,
-	  3,    4,    4,    6,    7,    8,    9,    3,    0,   12,
-	 37,    5,    9,   40,   11,    4,   43,   10,   11,   56,
-	 34,   35,   36,    3,   43,   47,    3,   13,   55,    6,
-	  7,    8,    9,    3,   51,   12,    6,    7,    8,    9,
-	  3,   -1,   -1,    6,    7,    8,    9,    3,   -1,   -1,
-	  6,    7,    8,    9,    6,    7,    8,    9
-};
+	static const int32_t	yycheck[] = {
+		 17,   13,   19,   20,   31,   32,   49,   50,   12,   13,
+		  3,    4,    4,    6,    7,    8,    9,    3,    0,   12,
+		 37,    5,    9,   40,   11,    4,   43,   10,   11,   56,
+		 34,   35,   36,    3,   43,   47,    3,   13,   55,    6,
+		  7,    8,    9,    3,   51,   12,    6,    7,    8,    9,
+		  3,   -1,   -1,    6,    7,    8,    9,    3,   -1,   -1,
+		  6,    7,    8,    9,    6,    7,    8,    9
+	};
+	return (yycheck[idx]);
+}
 
 /* -------- node arena helpers ---------------------------------------------- */
 static uint64_t	node_alloc(t_ctx *c, t_node_type type)
@@ -185,59 +203,77 @@ static uint64_t	reduce_filename(t_ctx *c, t_parser_state *parse, t_rule *rule);
 static uint64_t	reduce_io_here(t_ctx *c, t_parser_state *parse, t_rule *rule);
 static uint64_t	reduce_subshell(t_ctx *c, t_parser_state *parse, t_rule *rule);
 
-static const t_rule	rules[RULE_COUNT] =
+static t_rule	rule_dispatch_first(int32_t action)
 {
-	[0] = {NULL, 0, SYM_EOF},
-	[1] = {NULL, 2, SYM_ACCEPT},
-	[2] = {reduce_program, 3, SYM_PROGRAM},
-	[3] = {NULL, 1, SYM_PROGRAM},
-	[4] = {reduce_complete_commands, 3, SYM_COMPLETE_COMMANDS},
-	[5] = {NULL, 1, SYM_COMPLETE_COMMANDS},
-	[6] = {NULL, 1, SYM_LIST},
-	[7] = {reduce_list_and_if, 4, SYM_LIST},
-	[8] = {reduce_list_or_if, 4, SYM_LIST},
-	[9] = {reduce_pipeline_create, 1, SYM_PIPELINE},
-	[10] = {reduce_pipeline_append, 4, SYM_PIPELINE},
-	[11] = {NULL, 1, SYM_COMMAND},
-	[12] = {NULL, 1, SYM_COMMAND},
-	[13] = {NULL, 2, SYM_COMMAND},
-	[14] = {reduce_subshell, 3, SYM_SUBSHELL},
-	[15] = {NULL, 2, SYM_COMPOUND_LIST},
-	[16] = {NULL, 3, SYM_COMPOUND_LIST},
-	[17] = {NULL, 3, SYM_TERM},
-	[18] = {NULL, 1, SYM_TERM},
-	[19] = {reduce_simple_command, 3, SYM_SIMPLE_COMMAND},
-	[20] = {reduce_simple_command, 2, SYM_SIMPLE_COMMAND},
-	[21] = {reduce_simple_command, 1, SYM_SIMPLE_COMMAND},
-	[22] = {reduce_simple_command, 2, SYM_SIMPLE_COMMAND},
-	[23] = {reduce_simple_command, 1, SYM_SIMPLE_COMMAND},
-	[24] = {reduce_cmd_name, 1, SYM_CMD_NAME},
-	[25] = {reduce_cmd_word, 1, SYM_CMD_WORD},
-	[26] = {NULL, 1, SYM_CMD_PREFIX},
-	[27] = {reduce_chain_append, 2, SYM_CMD_PREFIX},
-	[28] = {NULL, 1, SYM_CMD_SUFFIX},
-	[29] = {reduce_chain_append, 2, SYM_CMD_SUFFIX},
-	[30] = {reduce_cmd_arg, 1, SYM_CMD_SUFFIX},
-	[31] = {reduce_cmd_arg_append, 2, SYM_CMD_SUFFIX},
-	[32] = {NULL, 1, SYM_REDIRECT_LIST},
-	[33] = {reduce_chain_append, 2, SYM_REDIRECT_LIST},
-	[34] = {NULL, 1, SYM_IO_REDIRECT},
-	[35] = {NULL, 1, SYM_IO_REDIRECT},
-	[36] = {reduce_io_file_LESS, 2, SYM_IO_FILE},
-	[37] = {reduce_io_file_GREAT, 2, SYM_IO_FILE},
-	[38] = {reduce_io_file_DGREAT, 2, SYM_IO_FILE},
-	[39] = {reduce_filename, 1, SYM_FILENAME},
-	[40] = {reduce_io_here, 2, SYM_IO_HERE},
-	[41] = {NULL, 1, SYM_HERE_END},
-	[42] = {NULL, 1, SYM_SEPARATOR},
-	[43] = {NULL, 2, SYM_SEPARATOR},
-	[44] = {NULL, 1, SYM_LINEBREAK},
-	[45] = {NULL, 0, SYM_LINEBREAK},
-};
+	t_rule	rule[16];
+	rule[0] = (t_rule){NULL, 0, SYM_EOF};
+	rule[1] = (t_rule){NULL, 2, SYM_ACCEPT};
+	rule[2] = (t_rule){reduce_program, 3, SYM_PROGRAM};
+	rule[3] = (t_rule){NULL, 1, SYM_PROGRAM};
+	rule[4] = (t_rule){reduce_complete_commands, 3, SYM_COMPLETE_COMMANDS};
+	rule[5] = (t_rule){NULL, 1, SYM_COMPLETE_COMMANDS};
+	rule[6] = (t_rule){NULL, 1, SYM_LIST};
+	rule[7] = (t_rule){reduce_list_and_if, 4, SYM_LIST};
+	rule[8] = (t_rule){reduce_list_or_if, 4, SYM_LIST};
+	rule[9] = (t_rule){reduce_pipeline_create, 1, SYM_PIPELINE};
+	rule[10] = (t_rule){reduce_pipeline_append, 4, SYM_PIPELINE};
+	rule[11] = (t_rule){NULL, 1, SYM_COMMAND};
+	rule[12] = (t_rule){NULL, 1, SYM_COMMAND};
+	rule[13] = (t_rule){NULL, 2, SYM_COMMAND};
+	rule[14] = (t_rule){reduce_subshell, 3, SYM_SUBSHELL};
+	rule[15] = (t_rule){NULL, 2, SYM_COMPOUND_LIST};
+	return (rule[action]);
+}
+
+static t_rule	rule_dispatch_second(int32_t action)
+{
+	t_rule	rule[16];
+	rule[0] = (t_rule){NULL, 3, SYM_COMPOUND_LIST};
+	rule[1] = (t_rule){NULL, 3, SYM_TERM};
+	rule[2] = (t_rule){NULL, 1, SYM_TERM};
+	rule[3] = (t_rule){reduce_simple_command, 3, SYM_SIMPLE_COMMAND};
+	rule[4] = (t_rule){reduce_simple_command, 2, SYM_SIMPLE_COMMAND};
+	rule[5] = (t_rule){reduce_simple_command, 1, SYM_SIMPLE_COMMAND};
+	rule[6] = (t_rule){reduce_simple_command, 2, SYM_SIMPLE_COMMAND};
+	rule[7] = (t_rule){reduce_simple_command, 1, SYM_SIMPLE_COMMAND};
+	rule[8] = (t_rule){reduce_cmd_name, 1, SYM_CMD_NAME};
+	rule[9] = (t_rule){reduce_cmd_word, 1, SYM_CMD_WORD};
+	rule[10] = (t_rule){NULL, 1, SYM_CMD_PREFIX};
+	rule[11] = (t_rule){reduce_chain_append, 2, SYM_CMD_PREFIX};
+	rule[12] = (t_rule){NULL, 1, SYM_CMD_SUFFIX};
+	rule[13] = (t_rule){reduce_chain_append, 2, SYM_CMD_SUFFIX};
+	rule[14] = (t_rule){reduce_cmd_arg, 1, SYM_CMD_SUFFIX};
+	rule[15] = (t_rule){reduce_cmd_arg_append, 2, SYM_CMD_SUFFIX};
+	return (rule[action - 16]);
+}
+
+static t_rule	rule_dispatch_third(int32_t action)
+{
+	t_rule	rule[14];
+	rule[0] = (t_rule){NULL, 1, SYM_REDIRECT_LIST};
+	rule[1] = (t_rule){reduce_chain_append, 2, SYM_REDIRECT_LIST};
+	rule[2] = (t_rule){NULL, 1, SYM_IO_REDIRECT};
+	rule[3] = (t_rule){NULL, 1, SYM_IO_REDIRECT};
+	rule[4] = (t_rule){reduce_io_file_LESS, 2, SYM_IO_FILE};
+	rule[5] = (t_rule){reduce_io_file_GREAT, 2, SYM_IO_FILE};
+	rule[6] = (t_rule){reduce_io_file_DGREAT, 2, SYM_IO_FILE};
+	rule[7] = (t_rule){reduce_filename, 1, SYM_FILENAME};
+	rule[8] = (t_rule){reduce_io_here, 2, SYM_IO_HERE};
+	rule[9] = (t_rule){NULL, 1, SYM_HERE_END};
+	rule[10] = (t_rule){NULL, 1, SYM_SEPARATOR};
+	rule[11] = (t_rule){NULL, 2, SYM_SEPARATOR};
+	rule[12] = (t_rule){NULL, 1, SYM_LINEBREAK};
+	rule[13] = (t_rule){NULL, 0, SYM_LINEBREAK};
+	return (rule[action - 32]);
+}
 
 static t_rule	get_rule(int32_t action)
 {
-	return (rules[action]);
+	if (action < 16)
+		return (rule_dispatch_first(action));
+	if (action < 32)
+		return (rule_dispatch_second(action));
+	return (rule_dispatch_third(action));
 }
 
 /* -------- push / pop ------------------------------------------------------- */
@@ -319,20 +355,40 @@ static uint64_t	reduce_list_and_if(t_ctx *c, t_parser_state *parse,
 		t_rule *rule)
 {
 	t_node		*node;
+	uint64_t	head;
+	uint64_t	new;
 
-	node = node_at(c, stack_at(c, parse, rule, 3)->node_idx);
+	head = stack_at(c, parse, rule, 0)->node_idx;
+	new = stack_at(c, parse, rule, 3)->node_idx;
+	node = node_at(c, new);
 	node->flags |= FLAG_AND_IF;
-	return (stack_at(c, parse, rule, 0)->node_idx);
+	if (!head)
+		return (new);
+	node = node_at(c, head);
+	while (node->data.pipeline.next_idx)
+		node = node_at(c, node->data.pipeline.next_idx);
+	node->data.pipeline.next_idx = new;
+	return (head);
 }
 
 static uint64_t	reduce_list_or_if(t_ctx *c, t_parser_state *parse,
 		t_rule *rule)
 {
 	t_node		*node;
+	uint64_t	head;
+	uint64_t	new;
 
-	node = node_at(c, stack_at(c, parse, rule, 3)->node_idx);
+	head = stack_at(c, parse, rule, 0)->node_idx;
+	new = stack_at(c, parse, rule, 3)->node_idx;
+	node = node_at(c, new);
 	node->flags |= FLAG_OR_IF;
-	return (stack_at(c, parse, rule, 0)->node_idx);
+	if (!head)
+		return (new);
+	node = node_at(c, head);
+	while (node->data.pipeline.next_idx)
+		node = node_at(c, node->data.pipeline.next_idx);
+	node->data.pipeline.next_idx = new;
+	return (head);
 }
 
 static uint64_t	reduce_pipeline_create(t_ctx *c, t_parser_state *parse,
@@ -350,19 +406,17 @@ static uint64_t	reduce_pipeline_append(t_ctx *c, t_parser_state *parse,
 		t_rule *rule)
 {
 	t_node		*node;
-	uint64_t	p;
 	uint64_t	head;
+	uint64_t	new_cmd;
+	uint64_t	cur_cmd;
 
-	p = node_alloc(c, NODE_PIPELINE);
-	node_at(c, p)->data.pipeline.command_head_idx
-		= stack_at(c, parse, rule, 3)->node_idx;
 	head = stack_at(c, parse, rule, 0)->node_idx;
-	if (!head)
-		return (p);
+	new_cmd = stack_at(c, parse, rule, 3)->node_idx;
 	node = node_at(c, head);
-	while (node->data.pipeline.next_idx)
-		node = node_at(c, node->data.pipeline.next_idx);
-	node->data.pipeline.next_idx = p;
+	cur_cmd = node->data.pipeline.command_head_idx;
+	while (node_at(c, cur_cmd)->data.command.next)
+		cur_cmd = node_at(c, cur_cmd)->data.command.next;
+	node_at(c, cur_cmd)->data.command.next = new_cmd;
 	return (head);
 }
 
@@ -556,11 +610,11 @@ static t_lalr_action	reduce(t_ctx *c, t_parser_state *parse, int32_t action)
 	}
 	pop(c, parse, rule.rhs_len);
 	lhs = rule.lhs_type - NTERM_OFFSET;
-	index = yypgoto[lhs] + parse->state;
-	if (0 <= index && index <= YYLAST && yycheck[index] == parse->state)
-		parse->state = yytable[index];
+	index = get_yypgoto(lhs) + parse->state;
+	if (0 <= index && index <= YYLAST && get_yycheck(index) == parse->state)
+		parse->state = get_yytable(index);
 	else
-		parse->state = yydefgoto[lhs];
+		parse->state = get_yydefgoto(lhs);
 	push_nonterm(c, parse, rule.lhs_type, node_idx, token_idx);
 	if (parse->state == YYFINAL)
 		return (LALR_ACCEPT);
@@ -586,17 +640,17 @@ t_lalr_action	shift_reduce(t_ctx *c, t_parser_state *parse,
 
 	(void)lex;
 	tokens = &(c->arena[AT_TOKENS]);
-	index = yypact[parse->state];
+	index = get_yypact(parse->state);
 	if (index == YYPACT_NINF)
-		return (reduce_or_error(c, parse, yydefact[parse->state]));
+		return (reduce_or_error(c, parse, get_yydefact(parse->state)));
 	if (parse->flags & PARSE_LOOKAHEAD_EOF)
 		lookahead = SYM_EOF;
 	else
 		lookahead = classify_token(c, get_ptr_from_idx(tokens, parse->token_idx));
 	index += lookahead;
-	if (index < 0 || index > YYLAST || yycheck[index] != lookahead)
-		return (reduce_or_error(c, parse, yydefact[parse->state]));
-	action = yytable[index];
+	if (index < 0 || index > YYLAST || get_yycheck(index) != lookahead)
+		return (reduce_or_error(c, parse, get_yydefact(parse->state)));
+	action = get_yytable(index);
 	if (action <= 0)
 		return (reduce_or_error(c, parse, -action));
 	return (shift(c, parse, action));
