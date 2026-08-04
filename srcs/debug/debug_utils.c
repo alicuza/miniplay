@@ -66,8 +66,6 @@ void	parse_debug_args(int argc, char **argv, t_ctx *c)
 				c->scope |= SCOPE_STACK;
 			else if (ft_strnstr(argv[i], "command", len))
 				c->scope |= SCOPE_COMMAND;
-			else if (ft_strnstr(argv[i], "symbols", len))
-				c->scope |= SCOPE_SYMBOLS;
 			if (!c->scope)
 				fprintf(stderr, "--scope: '%s' matched no scope\n", argv[i] + 8);
 		}

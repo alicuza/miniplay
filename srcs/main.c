@@ -87,8 +87,12 @@ int	main(int argc, char **argv, char **envp)
 		else
 			print_arena(&c.arena[AT_TOKENS]);
 		if (c.scope & SCOPE_STACK)
+			print_symbols(&c, &parse);
+		else
 			print_arena(&c.arena[AT_STACK]);
 		if (c.scope & SCOPE_COMMAND)
+			print_nodes(&c);
+		else
 			print_arena(&c.arena[AT_COMMAND]);
 		if (!c.no_exec)
 #endif

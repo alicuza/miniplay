@@ -6,11 +6,9 @@
 /*   By: sancuta <sancuta@student.42vienna.com>     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/07/22 10:15:13 by sancuta           #+#    #+#             */
-/*   Updated: 2026/08/01 16:14:34 by sancuta          ###   ########.fr       */
+/*   Updated: 2026-08-04 15:30:00 by nribakov          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
-
-// TODO stefan: update naming, depending on what flags we keep
 
 #include "minishell.h"
 
@@ -53,6 +51,65 @@ const char	*get_symbol_type_name(t_symbol_type type)
 		return ("SYM_OPAR");
 	else if (type == SYM_CPAR)
 		return ("SYM_CPAR");
+	else if (type == SYM_ACCEPT)
+		return ("SYM_ACCEPT");
+	else if (type == SYM_PROGRAM)
+		return ("SYM_PROGRAM");
+	else if (type == SYM_COMPLETE_COMMANDS)
+		return ("SYM_COMPLETE_COMMANDS");
+	else if (type == SYM_LIST)
+		return ("SYM_LIST");
+	else if (type == SYM_PIPELINE)
+		return ("SYM_PIPELINE");
+	else if (type == SYM_COMMAND)
+		return ("SYM_COMMAND");
+	else if (type == SYM_SUBSHELL)
+		return ("SYM_SUBSHELL");
+	else if (type == SYM_COMPOUND_LIST)
+		return ("SYM_COMPOUND_LIST");
+	else if (type == SYM_TERM)
+		return ("SYM_TERM");
+	else if (type == SYM_SIMPLE_COMMAND)
+		return ("SYM_SIMPLE_COMMAND");
+	else if (type == SYM_CMD_NAME)
+		return ("SYM_CMD_NAME");
+	else if (type == SYM_CMD_WORD)
+		return ("SYM_CMD_WORD");
+	else if (type == SYM_CMD_PREFIX)
+		return ("SYM_CMD_PREFIX");
+	else if (type == SYM_CMD_SUFFIX)
+		return ("SYM_CMD_SUFFIX");
+	else if (type == SYM_REDIRECT_LIST)
+		return ("SYM_REDIRECT_LIST");
+	else if (type == SYM_IO_REDIRECT)
+		return ("SYM_IO_REDIRECT");
+	else if (type == SYM_IO_FILE)
+		return ("SYM_IO_FILE");
+	else if (type == SYM_FILENAME)
+		return ("SYM_FILENAME");
+	else if (type == SYM_IO_HERE)
+		return ("SYM_IO_HERE");
+	else if (type == SYM_HERE_END)
+		return ("SYM_HERE_END");
+	else if (type == SYM_SEPARATOR)
+		return ("SYM_SEPARATOR");
+	else if (type == SYM_LINEBREAK)
+		return ("SYM_LINEBREAK");
+	return ("UNKNOWN");
+}
+
+const char	*get_node_type_name(t_node_type type)
+{
+	if (type == NODE_NONE)
+		return ("NODE_NONE");
+	else if (type == NODE_PIPELINE)
+		return ("NODE_PIPELINE");
+	else if (type == NODE_COMMAND)
+		return ("NODE_COMMAND");
+	else if (type == NODE_ARG)
+		return ("NODE_ARG");
+	else if (type == NODE_REDIR)
+		return ("NODE_REDIR");
 	return ("UNKNOWN");
 }
 
@@ -83,8 +140,3 @@ const char	*get_flag_name(uint32_t bit)
 	else
 		return ("UNKNOWN");
 }
-
-
-
-
-

@@ -18,21 +18,20 @@ void	print_flags(FILE *out, uint32_t flags)
 
 	if (!flags)
 	{
-		fprintf(stderr, "(no flags set)");
+		fprintf(out, "(no flags set)");
 		return ;
 	}
 	bit = 1;
 	while (!(flags & bit))
 		bit <<= 1;
-	fprintf(out, "%s ", get_flag_name(bit));
+	fprintf(out, "%s", get_flag_name(bit));
 	flags ^= bit;
 	while (flags)
 	{
 		bit <<= 1;
 		if (flags & bit)
 		{
-			fprintf(stderr, "|");
-			fprintf(out, "%s ", get_flag_name(bit));
+			fprintf(out, " | %s", get_flag_name(bit));
 			flags ^= bit;
 		}
 	}

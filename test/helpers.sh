@@ -20,19 +20,17 @@ assert_shell()
 
 	while IFS= read -r line; do
 		case "$line" in
-			TOKENS|SYMBOLS|STACK|COMMAND)
-				_assert_run "$input" "$scope" "$block" || result=1
-				block=""
-				case "$line" in
-					TOKENS)
-						scope="tokens" ;;
-					SYMBOLS)
-						scope="symbols" ;;
-					STACK)
-						scope="stack" ;;
-					COMMAND)
-						scope="command" ;;
-				esac ;;
+            TOKENS|SYMBOLS|STACK|COMMAND)
+                _assert_run "$input" "$scope" "$block" || result=1
+                block=""
+                case "$line" in
+                    TOKENS)
+                        scope="tokens" ;;
+                    SYMBOLS|STACK)
+                        scope="stack" ;;
+                    COMMAND)
+                        scope="command" ;;
+                esac ;;
 			*)
 				block="${block}${line}"$'\n' ;;
 		esac
