@@ -105,19 +105,12 @@ bool	handle_here_body(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
 {
 	t_arena		*stack;
 	t_symbol	*symbol;
-	t_node		*node;
-	uint64_t	body_idx;
 
 	stack = &c->arena[AT_STACK];
-	body_idx = get_here_doc(c, lex, &parse->here);
+	get_here_doc(c, lex, &parse->here);
 	parse->flags &= ~PARSE_HERE_BODY;
 	parse->flags |= PARSE_HAS_SAVED_TOKENS;
 	symbol = get_ptr_from_idx(stack, parse->stack_idx);
-	if (symbol->type == SYM_IO_HERE)
-	{
-		node = get_ptr_from_idx(&c->arena[AT_COMMAND], symbol->node_idx);
-		node->data.redir.arena_offset = body_idx;
-	}
 	parse->token_idx = symbol->token_idx;							// resetting parse.token_idx to the last shifted token after getting heredoc body
 	return (true);
 }

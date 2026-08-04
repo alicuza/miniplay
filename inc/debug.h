@@ -18,6 +18,7 @@
 
 const char	*get_arena_name(t_arena *arena);
 const char	*get_flag_name(uint32_t bit);
+const char	*get_node_flag_name(uint32_t bit);
 const char	*get_node_type_name(t_node_type type);
 const char	*get_symbol_type_name(t_symbol_type type);
 const char	*get_token_type_name(t_token_type type);

@@ -127,6 +127,8 @@ static bool	run_parse_iteration(t_ctx *c, t_parser_state *parse, t_lexer_state *
 	action = shift_reduce(c, parse, lex);
 #ifdef DEBUG
 	print_stack(c, parse);
+	if (action == LALR_REDUCE || action == LALR_ACCEPT)
+		print_nodes(c);
 #endif
 	return (parse_advance(c, parse, have_lookahead, action));
 }

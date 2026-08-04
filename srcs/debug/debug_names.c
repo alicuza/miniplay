@@ -113,6 +113,27 @@ const char	*get_node_type_name(t_node_type type)
 	return ("UNKNOWN");
 }
 
+const char	*get_node_flag_name(uint32_t bit)
+{
+	if (bit == FLAG_AND_IF)
+		return ("FLAG_AND_IF");
+	else if (bit == FLAG_OR_IF)
+		return ("FLAG_OR_IF");
+	else if (bit == FLAG_SUBSHELL)
+		return ("FLAG_SUBSHELL");
+	else if (bit == REDIR_IN)
+		return ("REDIR_IN");
+	else if (bit == REDIR_OUT)
+		return ("REDIR_OUT");
+	else if (bit == REDIR_HERE)
+		return ("REDIR_HERE");
+	else if (bit == REDIR_APPEND)
+		return ("REDIR_APPEND");
+	else if (bit == REDIR_HAS_QUOTES)
+		return ("REDIR_HAS_QUOTES");
+	return ("UNKNOWN");
+}
+
 const char	*get_flag_name(uint32_t bit)
 {
 	if (bit == TKN_HAS_QUOTES)

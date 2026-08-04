@@ -510,6 +510,7 @@ static uint64_t	reduce_io_file_LESS(t_ctx *c, t_parser_state *parse,
 
 	node = node_at(c, stack_at(c, parse, rule, 1)->node_idx);
 	node->flags |= REDIR_IN;
+	node->data.redir.fd = STDIN_FILENO;
 	return (stack_at(c, parse, rule, 1)->node_idx);
 }
 
@@ -520,6 +521,7 @@ static uint64_t	reduce_io_file_GREAT(t_ctx *c, t_parser_state *parse,
 
 	node = node_at(c, stack_at(c, parse, rule, 1)->node_idx);
 	node->flags |= REDIR_OUT;
+	node->data.redir.fd = STDOUT_FILENO;
 	return (stack_at(c, parse, rule, 1)->node_idx);
 }
 
@@ -530,6 +532,7 @@ static uint64_t	reduce_io_file_DGREAT(t_ctx *c, t_parser_state *parse,
 
 	node = node_at(c, stack_at(c, parse, rule, 1)->node_idx);
 	node->flags |= REDIR_APPEND;
+	node->data.redir.fd = STDOUT_FILENO;
 	return (stack_at(c, parse, rule, 1)->node_idx);
 }
 
@@ -563,6 +566,7 @@ static uint64_t	reduce_io_here(t_ctx *c, t_parser_state *parse, t_rule *rule)
 	parse->flags |= PARSE_SAVE_TOKENS;
 	idx = node_alloc(c, NODE_REDIR);
 	node_at(c, idx)->flags = flags;
+	node_at(c, idx)->data.redir.arena_offset = token->offset;
 	return (idx);
 }
 
@@ -591,10 +595,36 @@ static t_lalr_action	reduce(t_ctx *c, t_parser_state *parse, int32_t action)
 	uint64_t	token_idx;
 	int32_t		lhs;
 	int32_t		index;
+#ifdef DEBUG
+	uint32_t	rhs;
+	t_symbol	*symbol;
+#endif
 
 	if (action == 1)						/* $accept: program $end */
+	{
+#ifdef DEBUG
+		fprintf(stderr, "--- accept ---\n");
+#endif
 		return (LALR_ACCEPT);
+	}
 	rule = get_rule(action);
+#ifdef DEBUG
+	fprintf(stderr, "--- reduce ---  rule %d: %s :=", action,
+		get_symbol_type_name(rule.lhs_type));
+	if (rule.rhs_len == 0)
+		fprintf(stderr, " (epsilon)");
+	else
+	{
+		rhs = 0;
+		while (rhs < rule.rhs_len)
+		{
+			fprintf(stderr, " %s",
+				get_symbol_type_name(stack_at(c, parse, &rule, rhs)->type));
+			++rhs;
+		}
+	}
+	fprintf(stderr, "\n");
+#endif
 	if (rule.rhs_len)
 	{
 		if (rule.handler)
@@ -602,6 +632,17 @@ static t_lalr_action	reduce(t_ctx *c, t_parser_state *parse, int32_t action)
 		else
 			node_idx = stack_at(c, parse, &rule, 0)->node_idx;
 		token_idx = stack_at(c, parse, &rule, rule.rhs_len - 1)->token_idx;
+#ifdef DEBUG
+		rhs = 0;
+		while (rhs < rule.rhs_len)
+		{
+			symbol = stack_at(c, parse, &rule, rhs);
+			if (symbol->node_idx)
+				print_node_line(stderr, c, node_at(c, symbol->node_idx),
+					symbol->node_idx);
+			++rhs;
+		}
+#endif
 	}
 	else
 	{
@@ -615,17 +656,49 @@ static t_lalr_action	reduce(t_ctx *c, t_parser_state *parse, int32_t action)
 		parse->state = get_yytable(index);
 	else
 		parse->state = get_yydefgoto(lhs);
+#ifdef DEBUG
+	fprintf(stderr, "-- goto state %d\n", parse->state);
+	if (node_idx)
+		print_node_line(stderr, c, node_at(c, node_idx), node_idx);
+#endif
 	push_nonterm(c, parse, rule.lhs_type, node_idx, token_idx);
 	if (parse->state == YYFINAL)
+	{
+#ifdef DEBUG
+		fprintf(stderr, "--- accept ---\n");
+#endif
 		return (LALR_ACCEPT);
+	}
 	return (LALR_REDUCE);
 }
 
 static t_lalr_action	shift(t_ctx *c, t_parser_state *parse, int32_t action)
 {
+#ifdef DEBUG
+	t_token	*token;
+	t_arena	*tokens;
+#endif
+
 	parse->state = action;
+#ifdef DEBUG
+	if (parse->flags & PARSE_LOOKAHEAD_EOF)
+		fprintf(stderr, "--- shift ---  %s -> state %d\n",
+			get_symbol_type_name(SYM_EOF), parse->state);
+	else
+	{
+		tokens = &c->arena[AT_TOKENS];
+		token = get_ptr_from_idx(tokens, parse->token_idx);
+		fprintf(stderr, "--- shift ---  %s -> state %d\n",
+			get_symbol_type_name(classify_token(c, token)), parse->state);
+	}
+#endif
 	if (parse->state == YYFINAL)
+	{
+#ifdef DEBUG
+		fprintf(stderr, "--- accept ---\n");
+#endif
 		return (LALR_ACCEPT);
+	}
 	push_term(c, parse);
 	return (LALR_SHIFT);
 }

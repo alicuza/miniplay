@@ -6,7 +6,7 @@
 /*   By: sancuta <sancuta@student.42vienna.com>     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/12 11:08:25 by sancuta           #+#    #+#             */
-/*   Updated: 2026-08-04 15:30:00 by nribakov          ###   ########.fr       */
+/*   Updated: 2026/08/04 17:49:49 by sancuta          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,19 +14,21 @@
 
 void	print_symbol(t_ctx *c, t_symbol *symbol, uint64_t idx)
 {
-	t_arena	*input;
 	t_arena	*tokens;
 	t_token	*token;
+	t_arena	*input;
 
 	tokens = &c->arena[AT_TOKENS];
 	input = &c->arena[AT_STRING];
 	token = get_ptr_from_idx(tokens, symbol->token_idx);
-	fprintf(stderr, "  [%lu]  %s(", idx, get_symbol_type_name(symbol->type));
-	print_escaped_str(stderr, input->buf + token->offset);
-	fprintf(stderr, ")  {  token_idx = %lu state = %u  node_idx = %lu  flags = ",
-		symbol->token_idx, symbol->entry_state, symbol->node_idx);
+	fprintf(stderr, "%lu %s(", idx, get_symbol_type_name(symbol->type));
+	if (symbol->type == SYM_LINEBREAK && input->buf[token->offset] != '\n')
+		fprintf(stderr, "epsilon");
+	else
+		print_escaped_str(stderr, input->buf + token->offset);
+	fprintf(stderr, ") { node_idx = %lu flags = ", symbol->node_idx);
 	print_flags(stderr, token->flags);
-	fprintf(stderr, "  }\n");
+	fprintf(stderr, " }\n");
 }
 
 void	print_stack(t_ctx *c, t_parser_state *parse)
@@ -36,7 +38,16 @@ void	print_stack(t_ctx *c, t_parser_state *parse)
 	t_arena		*stack;
 
 	stack = &c->arena[AT_STACK];
-	fprintf(stderr, "\n--- stack ---\n");
+	fprintf(stderr, "\n--- stack ---  (state %d)\n", parse->state);
+	fprintf(stderr, "--- state stack: ");
+	phys = 1;
+	while (phys <= parse->stack_idx)
+	{
+		symbol = get_ptr_from_idx(stack, phys);
+		fprintf(stderr, "%d ", symbol->entry_state);
+		++phys;
+	}
+	fprintf(stderr, "---\n");
 	fprintf(stderr, "--- top -----\n");
 	phys = parse->stack_idx;
 	while (phys)
@@ -57,16 +68,18 @@ void	print_symbol_line(FILE *out, t_ctx *c, t_symbol *symbol, uint64_t idx)
 	tokens = &c->arena[AT_TOKENS];
 	input = &c->arena[AT_STRING];
 	token = get_ptr_from_idx(tokens, symbol->token_idx);
-	fprintf(out, "[%lu] %s(", idx, get_symbol_type_name(symbol->type));
-	print_escaped_str(out, input->buf + token->offset);
-	fprintf(out, ") {  token_idx = %lu  state = %u  node_idx = %lu",
-		symbol->token_idx, symbol->entry_state, symbol->node_idx);
+	fprintf(out, "%lu %s(", idx, get_symbol_type_name(symbol->type));
+	if (symbol->type == SYM_LINEBREAK && input->buf[token->offset] != '\n')
+		fprintf(out, "epsilon");
+	else
+		print_escaped_str(out, input->buf + token->offset);
+	fprintf(out, ") { node_idx = %lu flags = ", symbol->node_idx);
 	if (token->flags)
 	{
-		fprintf(out, "  flags = ");
+		fprintf(out, " ");
 		print_flags(out, token->flags);
 	}
-	fprintf(out, "  }\n");
+	fprintf(out, " }\n");
 }
 
 void	print_tokens(t_ctx *c)
@@ -119,48 +132,81 @@ void	print_symbols(t_ctx *c, t_parser_state *parse)
 	}
 }
 
+static void	print_node_flags(FILE *out, uint8_t flags)
+{
+	uint32_t	bit;
+
+	bit = 1;
+	while (bit && !(flags & bit))
+		bit <<= 1;
+	while (bit)
+	{
+		if (flags & bit)
+		{
+			fprintf(out, " %s", get_node_flag_name(bit));
+			flags ^= bit;
+		}
+		bit <<= 1;
+	}
+}
+
 void	print_node_line(FILE *out, t_ctx *c, t_node *node, uint64_t idx)
 {
 	t_arena	*strings;
 
 	strings = &c->arena[AT_STRING];
-	fprintf(out, "[%lu] %s { ", idx, get_node_type_name(node->type));
+	fprintf(out, "[id %lu] %s", idx, get_node_type_name(node->type));
 	if (node->type == NODE_PIPELINE)
 	{
-		fprintf(out, "command_head_idx = %lu  next_idx = %lu",
-			node->data.pipeline.command_head_idx,
-			node->data.pipeline.next_idx);
+		fprintf(out, " [next %lu] [command_head %lu]",
+			node->data.pipeline.next_idx,
+			node->data.pipeline.command_head_idx);
 	}
 	else if (node->type == NODE_COMMAND)
 	{
-		fprintf(out, "arg_head_idx = %lu  redir_head_idx = %lu  next = %lu",
+		fprintf(out, " [next %lu] [arg_head %lu] [redir_head %lu]",
+			node->data.command.next,
 			node->data.command.arg_head_idx,
-			node->data.command.redir_head_idx,
-			node->data.command.next);
+			node->data.command.redir_head_idx);
 	}
 	else if (node->type == NODE_ARG)
 	{
-		fprintf(out, "arena_offset = %lu  next = %lu",
-			node->data.arg.arena_offset, node->data.arg.next);
+		fprintf(out, "(");
 		if (node->data.arg.arena_offset)
-		{
-			fprintf(out, " ");
 			print_escaped_str(out, strings->buf + node->data.arg.arena_offset);
-		}
+		fprintf(out, ") [next %lu]", node->data.arg.next);
 	}
 	else if (node->type == NODE_REDIR)
 	{
-		fprintf(out, "arena_offset = %lu  next = %lu  fd = %d",
-			node->data.redir.arena_offset,
-			node->data.redir.next,
-			node->data.redir.fd);
+		fprintf(out, "(");
+		if (node->flags & REDIR_HERE)
+		{
+			fprintf(out, "<< ");
+			if (node->data.redir.arena_offset)
+				print_escaped_str(out, strings->buf + node->data.redir.arena_offset);
+		}
+		else if (node->flags & REDIR_OUT)
+		{
+			fprintf(out, "> ");
+			if (node->data.redir.arena_offset)
+				print_escaped_str(out, strings->buf + node->data.redir.arena_offset);
+		}
+		else if (node->flags & REDIR_APPEND)
+		{
+			fprintf(out, ">> ");
+			if (node->data.redir.arena_offset)
+				print_escaped_str(out, strings->buf + node->data.redir.arena_offset);
+		}
+		else if (node->flags & REDIR_IN)
+		{
+			fprintf(out, "< ");
+			if (node->data.redir.arena_offset)
+				print_escaped_str(out, strings->buf + node->data.redir.arena_offset);
+		}
+		fprintf(out, ") [next %lu]", node->data.redir.next);
 	}
-	if (node->flags)
-	{
-		fprintf(out, "  flags = ");
-		print_flags(out, node->flags);
-	}
-	fprintf(out, " }\n");
+	print_node_flags(out, node->flags);
+	fprintf(out, "\n");
 }
 
 void	print_nodes(t_ctx *c)
@@ -181,7 +227,7 @@ void	print_nodes(t_ctx *c)
 	while (i <= count)
 	{
 		node = get_ptr_from_idx(commands, i);
-		print_node_line(stdout, c, node, i);
+		print_node_line(stderr, c, node, i);
 		++i;
 	}
 }
