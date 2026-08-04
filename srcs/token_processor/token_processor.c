@@ -128,25 +128,23 @@ void	execute(t_ctx *c, t_parser_state *parse)
 	t_arena		*stack;
 	t_symbol	*symbol;
 	t_node		*pipeline_node;
-	t_node		*command_node;
-	t_node		*arg_node;
 
+	(void)parse;
 	stack = &(c->arena[AT_STACK]);
 	symbol = get_ptr_from_offset(stack, stack->offset - stack->stride);
 	pipeline_node = get_ptr_from_idx(&c->arena[AT_COMMAND], symbol->node_idx);
-	while (*pipeline_node != '\0') // TODO stefan: check if condition is correct
+	while (pipeline_node)
 	{
-		command_node = get_ptr_from_idx(&c->arena[AT_COMMAND],
-				pipeline_node->data.command_head_idx);
-		arg_node = command_node->data.command.arg_head;
-		// build_command(c, arg_node);
-		pipeline_node = get_ptr_from_idx(&c->arena[AT_COMMAND],
-				pipeline_node->data.next_idx);
+		// TODO nik: walk the arg chain and redirection chain of
+		// pipeline_node->data.pipeline.command_head_idx and execute
+		pipeline_node = pipeline_node->data.pipeline.next_idx
+			? get_ptr_from_idx(&c->arena[AT_COMMAND],
+				pipeline_node->data.pipeline.next_idx)
+			: NULL;
 	}
 }
 
 void	exec_stack(t_ctx *c, t_parser_state *parse)
 {
-	// build_command(c, parse);
-	execute(c); // Execute stuff after parser is done
+	execute(c, parse); // Execute stuff after parser is done
 }

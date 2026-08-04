@@ -11,54 +11,23 @@
 /* ************************************************************************** */
 
 #include "minishell.h"
-#define YYFINAL  28
 
-void	try_reduce_symbol(t_ctx *c, t_parser_state *parse, t_here_state *here)
-{
-	t_arena			*strings;
-	t_arena			*symbols;
-	t_arena			*tokens;
-	t_symbol		*symbol;
-	t_token			*token;
-
-	strings = &c->arena[AT_STRING];
-	tokens = &c->arena[AT_TOKENS];
-	symbols = &c->arena[AT_STACK];
-	symbol =
-		get_ptr_from_offset(symbols, symbols->offset - symbols->stride);
-	token = get_ptr_from_idx(tokens, symbol->token_idx);
-	if ((symbol - 1)->type == SYM_DLESS && symbol->type == SYM_WORD)
-	{
-		parse->flags |= PARSE_SAVE_TOKENS;
-	    here->body.pos = 0;
-    	here->body.len = 0;
-		here->delim.pos = token->offset;
-		here->delim.len = ft_strlen(get_ptr_from_offset(strings, here->delim.pos));
-		if (token->flags & TKN_HAS_QUOTES)	// TODO: needs more roburs handling for quuotes in any position
-		{
-			here->delim.pos += 1;
-			here->delim.len -= 2;
-		}
-	}
-}
-
-bool	get_next_token(t_ctx *c, t_parser_state *parse, t_lexer_state *lex, t_here_state *here)
+bool	get_next_token(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
 {
 	while (true)
 	{
 		if ((parse->flags & PARSE_HERE_BODY)
-			&& !handle_here_body(c, parse, lex, here))
+			&& !handle_here_body(c, parse, lex))
 			return (false);
-		if (lex->flags & LEX_AT_EOI)
-		{
-			ft_memset(lex, 0, sizeof(t_lexer_state));
-			return (false);													// eof reached
-		}
 		if (parse->flags & PARSE_HAS_SAVED_TOKENS)
 		{
 			if (handle_saved_tokens(c, parse))
 				return (true);
-//			return (false);
+		}
+		if (lex->flags & LEX_AT_EOI)
+		{
+			ft_memset(lex, 0, sizeof(t_lexer_state));
+			return (false);													// eof reached
 		}
 		if (lex_token(c, lex))
 		{
@@ -68,61 +37,112 @@ bool	get_next_token(t_ctx *c, t_parser_state *parse, t_lexer_state *lex, t_here_
 	}
 }
 
+static void	report_parse_error(t_ctx *c, t_parser_state *parse)
+{
+	t_token	*token;
+	char	*body;
+
+	parse->flags |= PARSE_ERROR;
+	token = get_ptr_from_idx(&c->arena[AT_TOKENS], parse->token_idx);
+	body = get_ptr_from_offset(&c->arena[AT_STRING], token->offset);
+	if (parse->flags & PARSE_LOOKAHEAD_EOF)
+		printf("minishell: syntax error near unexpected token 'end of file'\n");
+	else if (body[0] == '\n')
+		printf("minishell: syntax error near unexpected token 'newline'\n");
+	else
+		printf("minishell: syntax error near unexpected token '%s'\n", body);
+}
+
 t_parser_state	parse_input(t_ctx *c)
 {
 	t_parser_state	parse;
 	t_lexer_state	lex;
-	t_here_state	here; // TODO: think about adding t_here_state to t_parser_state
+	t_lalr_action	action;
+	t_token			*cur;
 	t_arena			*strings;
 	t_arena			*tokens;
-	t_token			*cur_token;
+	bool			have_lookahead;
 
 	ft_memset(&lex, 0, sizeof(t_lexer_state));
 	ft_memset(&parse, 0, sizeof(t_parser_state));
-	ft_memset(&here, 0, sizeof(t_here_state));
 	strings = &c->arena[AT_STRING];
 	tokens = &c->arena[AT_TOKENS];
 	arena_clear(strings);
 	arena_clear(tokens);
+	have_lookahead = false;
 	while (true)
 	{
-		if(!get_next_token(c, &parse, &lex, &here))
-			break ;
-		cur_token = get_ptr_from_idx(tokens, parse.token_idx);
-#ifdef DEBUG
-		FILE *out = stderr;
-		if (c->scope & SCOPE_TOKENS)
-			out = stdout;
-		fprintf(stderr, "\n--- lookahead ---\n");
-		print_token(out, c, cur_token);
-		print_arena(&c->arena[AT_STRING]);
-		print_arena(&c->arena[AT_TOKENS]);
-#endif
-		if (parse.flags & PARSE_SAVE_TOKENS)
+		if (!have_lookahead)
 		{
-			if (cur_token->type == TKN_OPERATOR
-				&& strings->buf[cur_token->offset] == '\n')
+			if (!get_next_token(c, &parse, &lex))
+			{
+				if (parse.flags & PARSE_SAVE_TOKENS)		/* divert-at-EOF */
+				{
+					parse.flags &= ~PARSE_SAVE_TOKENS;
+					parse.flags |= PARSE_HERE_BODY;
+					continue ;
+				}
+				break ;										/* eof reached */
+			}
+			have_lookahead = true;
+		}
+		cur = get_ptr_from_idx(tokens, parse.token_idx);
+#ifdef DEBUG
+		fprintf(stderr, "\n--- lookahead ---\n");
+		print_token(stderr, c, cur);
+		print_arena(strings);
+		print_arena(tokens);
+#endif
+		if (parse.flags & PARSE_SAVE_TOKENS)				/* divert intercept */
+		{
+			if (strings->buf[cur->offset] == '\n')
 			{
 				parse.flags &= ~PARSE_SAVE_TOKENS;
 				parse.flags |= PARSE_HERE_BODY;
 			}
+			have_lookahead = false;							/* non-\n tokens dropped */
+			continue ;
 		}
-		else
-		{
-			if(parse.state == YYFINAL)
-				return (parse);
-			shift_reduce(c, &parse, &lex, &here);
-//			shift_symbol(c, &parse);
-//			try_reduce_symbol(c, &parse, &here);
-		}
+		action = shift_reduce(c, &parse, &lex);
+		if (action == LALR_REDUCE)
+			continue ;										/* same lookahead */
+		have_lookahead = false;								/* lookahead consumed */
 #ifdef DEBUG
 		{
-			t_symbol *symbol;
+			t_symbol	*symbol;
+
 			symbol = get_ptr_from_idx(&c->arena[AT_STACK], parse.stack_idx);
 			print_symbol(c, symbol, parse.stack_idx);
 			print_arena(&c->arena[AT_STACK]);
 		}
 #endif
+		if (action == LALR_ACCEPT)
+		{
+			parse.flags |= PARSE_DONE;
+			return (parse);
+		}
+		if (action == LALR_ERROR)
+		{
+			report_parse_error(c, &parse);
+			return (parse);
+		}
 	}
+	parse.flags |= PARSE_LOOKAHEAD_EOF;						/* final pass */
+	while (true)
+	{
+		action = shift_reduce(c, &parse, &lex);
+		if (action == LALR_ACCEPT)
+		{
+			parse.flags |= PARSE_DONE;
+			break ;
+		}
+		if (action == LALR_ERROR)
+		{
+			report_parse_error(c, &parse);
+			break ;
+		}
+	}
+	if (!(parse.flags & PARSE_ERROR) && (parse.flags & PARSE_SAVE_TOKENS))
+		get_here_doc(c, &lex, &parse.here);					/* empty body + warning */
 	return (parse);
 }

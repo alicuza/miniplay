@@ -74,10 +74,12 @@ const char	*get_flag_name(uint32_t bit)
 		return ("PARSE_HAS_SAVED_TOKENS");
 	else if (bit == PARSE_SAVE_TOKENS)
 		return ("PARSE_SAVE_TOKENS");
-	else if (bit == PARSE_HERE_PENDING)
-		return ("PARSE_HERE_PENDING");
 	else if (bit == PARSE_HERE_BODY)
 		return ("PARSE_HERE_BODY");
+	else if (bit == PARSE_ERROR)
+		return ("PARSE_ERROR");
+	else if (bit == PARSE_LOOKAHEAD_EOF)
+		return ("PARSE_LOOKAHEAD_EOF");
 	else
 		return ("UNKNOWN");
 }
