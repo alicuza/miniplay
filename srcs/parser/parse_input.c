@@ -3,8 +3,8 @@
 /*                                                        :::      ::::::::   */
 /*   parse_input.c                                      :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: nribakov <nribakov@student.42vienna.com    +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
+/*   By: nribakov <nribakov@student.42vienna.com    +#+  +:+       #+#        */
+/*                                                +#+#+#+#+#+   #+#           */
 /*   Created: 2026/06/10 17:14:19 by sancuta           #+#    #+#             */
 /*   Updated: 2026/08/04 00:04:10 by nribakov         ###   ########.fr       */
 /*                                                                            */
@@ -27,7 +27,7 @@ bool	get_next_token(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
 		if (lex->flags & LEX_AT_EOI)
 		{
 			ft_memset(lex, 0, sizeof(t_lexer_state));
-			return (false);													// eof reached
+			return (false);
 		}
 		if (lex_token(c, lex))
 		{
@@ -53,96 +53,106 @@ static void	report_parse_error(t_ctx *c, t_parser_state *parse)
 		printf("minishell: syntax error near unexpected token '%s'\n", body);
 }
 
+static bool	fetch_lookahead(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
+{
+	if (!get_next_token(c, parse, lex))
+	{
+		if (parse->flags & PARSE_SAVE_TOKENS)
+		{
+			parse->flags &= ~PARSE_SAVE_TOKENS;
+			parse->flags |= PARSE_HERE_BODY;
+		}
+		return (false);
+	}
+	return (true);
+}
+
+static bool	handle_divert(t_ctx *c, t_parser_state *parse)
+{
+	t_token	*cur;
+
+	cur = get_ptr_from_idx(&c->arena[AT_TOKENS], parse->token_idx);
+	if (c->arena[AT_STRING].buf[cur->offset] == '\n')
+	{
+		parse->flags &= ~PARSE_SAVE_TOKENS;
+		parse->flags |= PARSE_HERE_BODY;
+	}
+	return (true);
+}
+
+static bool	run_parse_iteration(t_ctx *c, t_parser_state *parse, t_lexer_state *lex, bool *have_lookahead)
+{
+	t_lalr_action	action;
+
+	if (!*have_lookahead && !fetch_lookahead(c, parse, lex))
+		return (false);
+	*have_lookahead = true;
+	if (parse->flags & PARSE_SAVE_TOKENS)
+	{
+		*have_lookahead = false;
+		return (handle_divert(c, parse));
+	}
+#ifdef DEBUG
+	fprintf(stderr, "\n--- lookahead ---\n");
+	print_token(stderr, c, get_ptr_from_idx(&c->arena[AT_TOKENS], parse->token_idx));
+	print_arena(&c->arena[AT_STRING]);
+	print_arena(&c->arena[AT_TOKENS]);
+#endif
+	action = shift_reduce(c, parse, lex);
+	if (action == LALR_REDUCE)
+		return (true);
+	if (action == LALR_SHIFT)
+	{
+		*have_lookahead = false;
+		return (true);
+	}
+	if (action == LALR_ACCEPT)
+	{
+		parse->flags |= PARSE_DONE;
+		return (false);
+	}
+	if (action == LALR_ERROR)
+		report_parse_error(c, parse);
+	*have_lookahead = false;
+	return (false);
+}
+
+static void	final_pass(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
+{
+	t_lalr_action	action;
+
+	while (true)
+	{
+		action = shift_reduce(c, parse, lex);
+		if (action == LALR_ACCEPT)
+		{
+			parse->flags |= PARSE_DONE;
+			return ;
+		}
+		if (action == LALR_ERROR)
+		{
+			report_parse_error(c, parse);
+			return ;
+		}
+	}
+}
+
 t_parser_state	parse_input(t_ctx *c)
 {
 	t_parser_state	parse;
 	t_lexer_state	lex;
-	t_lalr_action	action;
-	t_token			*cur;
-	t_arena			*strings;
-	t_arena			*tokens;
 	bool			have_lookahead;
 
 	ft_memset(&lex, 0, sizeof(t_lexer_state));
 	ft_memset(&parse, 0, sizeof(t_parser_state));
-	strings = &c->arena[AT_STRING];
-	tokens = &c->arena[AT_TOKENS];
-	arena_clear(strings);
-	arena_clear(tokens);
+	arena_clear(&c->arena[AT_STRING]);
+	arena_clear(&c->arena[AT_TOKENS]);
 	have_lookahead = false;
-	while (true)
-	{
-		if (!have_lookahead)
-		{
-			if (!get_next_token(c, &parse, &lex))
-			{
-				if (parse.flags & PARSE_SAVE_TOKENS)		/* divert-at-EOF */
-				{
-					parse.flags &= ~PARSE_SAVE_TOKENS;
-					parse.flags |= PARSE_HERE_BODY;
-					continue ;
-				}
-				break ;										/* eof reached */
-			}
-			have_lookahead = true;
-		}
-		cur = get_ptr_from_idx(tokens, parse.token_idx);
-#ifdef DEBUG
-		fprintf(stderr, "\n--- lookahead ---\n");
-		print_token(stderr, c, cur);
-		print_arena(strings);
-		print_arena(tokens);
-#endif
-		if (parse.flags & PARSE_SAVE_TOKENS)				/* divert intercept */
-		{
-			if (strings->buf[cur->offset] == '\n')
-			{
-				parse.flags &= ~PARSE_SAVE_TOKENS;
-				parse.flags |= PARSE_HERE_BODY;
-			}
-			have_lookahead = false;							/* non-\n tokens dropped */
-			continue ;
-		}
-		action = shift_reduce(c, &parse, &lex);
-		if (action == LALR_REDUCE)
-			continue ;										/* same lookahead */
-		have_lookahead = false;								/* lookahead consumed */
-#ifdef DEBUG
-		{
-			t_symbol	*symbol;
-
-			symbol = get_ptr_from_idx(&c->arena[AT_STACK], parse.stack_idx);
-			print_symbol(c, symbol, parse.stack_idx);
-			print_arena(&c->arena[AT_STACK]);
-		}
-#endif
-		if (action == LALR_ACCEPT)
-		{
-			parse.flags |= PARSE_DONE;
-			return (parse);
-		}
-		if (action == LALR_ERROR)
-		{
-			report_parse_error(c, &parse);
-			return (parse);
-		}
-	}
-	parse.flags |= PARSE_LOOKAHEAD_EOF;						/* final pass */
-	while (true)
-	{
-		action = shift_reduce(c, &parse, &lex);
-		if (action == LALR_ACCEPT)
-		{
-			parse.flags |= PARSE_DONE;
-			break ;
-		}
-		if (action == LALR_ERROR)
-		{
-			report_parse_error(c, &parse);
-			break ;
-		}
-	}
+	while (run_parse_iteration(c, &parse, &lex, &have_lookahead))
+		;
+	parse.flags |= PARSE_LOOKAHEAD_EOF;
+	final_pass(c, &parse, &lex);
 	if (!(parse.flags & PARSE_ERROR) && (parse.flags & PARSE_SAVE_TOKENS))
-		get_here_doc(c, &lex, &parse.here);					/* empty body + warning */
+		get_here_doc(c, &lex, &parse.here);
 	return (parse);
 }
