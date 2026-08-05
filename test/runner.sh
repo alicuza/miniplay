@@ -4,7 +4,7 @@ _run_functions()
 {
 	local func passed=0 failed=0 result=0
 
-	for func in $(awk '/^test_/ {print $1}' "$1"); do
+	for func in $(awk '/^test_[a-zA-Z0-9_]*\(\)/ {print $1}' "$1"); do
 		func="${func%()}"
 		printf "  %-50s " "$func"
 		if "$func"; then
@@ -26,7 +26,7 @@ run()
 		name="${test_file##*/}"
 		echo "Running: ${name%.sh}"
 		case $test_file in
-			*builtin*)
+			*builtin*|*search_execution*)
 				./"$test_file" || result=1 ;;
 			*)
 				. ./"$test_file"
