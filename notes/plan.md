@@ -1,219 +1,258 @@
-# Parser Rewrite — Implementation Plan
+# minishell — plan (post-4-Aug review & feature completion)
 
-Goal: replace the handwritten ad-hoc parsing in `shift_reduce.c` with a
-bison-table-driven LALR parser with handler-based AST building, fix
-trailing-newline-at-EOF acceptance via a grammar `program` wrapper, and
-keep the **divert-based heredoc design** (early read at `io_here` reduction +
-save/replay of tokens).
+## 0. Done (removed)
+Parser rewrite phases (grammar/bison tables, token renumbering, shift_reduce
+rewrite, heredoc subsystem, driver, headers) — all committed. test_parse 37/37,
+test_parse_tree 24/24.
 
-Milestones are ordered; each ends with a build/verify step.
+## 1. Review of changes since 4 August
+- Walk commits 5fcb28d → d2726d6 plus 4f71bef (heredoc repoint),
+  0ac1546 (handler refactor), f66e242 (runner fix).
+- Verify refactor equivalence: full `make test` (parse 37/37, tree 24/24).
+- Heredoc edge cases: multi-heredoc `cat <<A <<B`, quoted delimiters.
+- Runner dispatch: *search_execution* subprocess case.
+- Open items: exec_list() TODO stub, builtin subprocess silence
+  (pwd/cd/env/search_execution), rl_outstream = stderr echo in
+  non-interactive mode (srcs/input.c:29).
 
----
+## 2. Overly long functions
+- 42 norm: ≤25 lines/func, ≤5 funcs/file, ≤80 cols. 882 norminette errors
+  (detail in /tmp/opencode/norm.txt): 66× TOO_MANY_FUNCS, 121× LINE_TOO_LONG.
+- Worst file: shift_reduce.c (732 lines, 217 errors, ~20+ statics).
+  Split → shift_reduce.c + reduce_handlers.c + rule_tables.c; extract reduce()
+  driver and shift_reduce() (lines ~705-732) first; then handle_here_body /
+  get_here_doc, lookahead.c helpers.
+- Gate: norminette per file after each move; tests after full split.
 
-## Phase 1 — Grammar edit + bison regeneration
+## 3. #ifdef DEBUG stripping script
+- `#else` blocks exist — keep the #else branch:
+  - srcs/parser/parse_input.c:149-151 (#ifndef DEBUG/#else/#endif)
+  - srcs/lexer/lookahead.c:130-133 and 154-157 ((void)c;)
+- ~50 #ifdef DEBUG sites across main.c, execute_non_builtin.c, pwd.c, env.c,
+  lookahead.c, shift_reduce.c, parse_input.c, lex_heredoc.c, token_processor.c.
+- tools/strip_debug.sh (awk): delete #ifdef DEBUG…#endif bodies; keep #else
+  branches; run on a COPY (/tmp submission tree) so repo `make debug` works.
+- Verify: stripped copy builds with `make` (non-DEBUG) + tests pass.
+- Submission artifact = stripped copy; repo keeps DEBUG intact.
 
-`shni_grammar_reduced.y`:
+## 4. Execution
+- exec_list() (token_processor.c:126) walks pipelines but executes nothing.
+  Wire from AST: argv from NODE_ARG chain; redirections (open/dup2,
+  REDIR_HERE body already in AT_STRING via attach_here_body — feed via
+  temp file or pipe); pipes (fork/pipe/dup2, close fds); waitpid → status →
+  c->return_status; subshell/&&/|| flags.
+- Builtin dispatch exists (match_builtin, command_search_and_execution);
+  init_command/build_command become obsolete once exec runs off NODE_COMMAND.
+- Target: builtin subprocess tests green.
 
-1. `%start complete_commands` → `%start program`.
-2. Insert before `complete_commands`:
+## 5. Expansion
+- Only lexer detection exists (is_expansion_start, TKN_HAS_EXPANSION).
+- $VAR via env_get (unset → empty/removed); $? via c->return_status
+  (types.h:57); no expansion in single quotes; $ expands in double quotes;
+  heredoc expands only with unquoted delimiter.
+- Decide lex-time vs exec-time (exec-time recommended: expansion can change
+  argv count); command name expansion must work.
 
-   ```
-   program
-       : linebreak complete_commands linebreak
-       | linebreak
-       ;
-   ```
+## 6. Error handling
+- Existing: report_parse_error (syntax), perror in cd/execute_non_builtin,
+  exit_mem_issue, bare 127.
+- Add: uniform `minishell: <ctx>: <strerror>` for command not found (127),
+  permission denied (126), redirection/execve/fork/pipe failures; builtin
+  error messages + exit codes; $? correctness (signals, not-found, builtins);
+  &&/|| short-circuit depends on it; shell keeps running on all errors.
 
-3. Run `bison shni_grammar_reduced.y`.
+## 7. Signalling
+- Nothing implemented (only <signal.h> include). At most one global
+  (signal number).
+- SIGINT (ctrl-C): interrupt line, new prompt; async-safe handler with
+  rl_replace_line/rl_on_new_line/rl_redisplay. SIGQUIT (ctrl-\): ignore
+  interactively. Children: reset SIG_DFL before execve; status 128+signo.
+- ctrl-D (EOF): readline NULL → exit path.
 
-**Gate — stop and reassess if anything other than this:**
-- Exactly **1 shift/reduce conflict** in the `.output` (merged state after
-  `complete_commands separator`: shift `list` vs reduce `linebreak: separator`;
-  resolved as shift = correct behavior). It is benign: the separator is
-  reduced as `linebreak` only when no `list` follows.
-- `yyr1`/`yyr2`/`yyn` now show **45 rules**.
-- `YYNTOKENS` stays **14** → `NTERM_OFFSET` stays **14**. New `YYFINAL`
-  changes (re-copy).
+## 8. Arena refactor (execution functions)
+- Replace transient malloc/free with arena where lifetime ≤ one parse:
+  build_command argv/pathname (token_processor.c:74/101), get_pathname joins,
+  env_to_envp, ft_split_with_empty (PATH), get_path_canonical_form (:92),
+  ft_split_key_value (export).
+- Non-candidates: persistent env list (env_add/update/delete,
+  add_env_defaults) — survives parses.
+- Benefit: no per-parse leaks; verify with make test + valgrind.
 
-`shni_grammar_reduced.tab.c` is a reference file (hand-copied tables); the
-Makefile has no bison rule and does not compile it.
+## 9. Test coverage
+Baseline: colleague tester LeaYeh/42_minishell_tester (42 Vienna fork of
+zstenger93; install via curl installer → $HOME/42_minishell_tester, alias
+mstest; clone already at /tmp/opencode/mstester).
 
-## Phase 2 — Renumbering (rules old N → N+2 for N ≥ 2)
+- Method: pipes each command into ./minishell vs `bash --posix`, filters
+  banner/prompt/exit messages, learns our program name and filters it,
+  crash detection, valgrind leak + fd checks (`--track-fds=all`, `--no-stdfds`
+  if we dup2 stdfds), failed cases + valgrind logs to mstest_output/.
+- Mandatory categories (~1600 cases): compare_parsing 78, builtins cd 113 /
+  echo 79 / env 4 / exit 68 / export 79 / pwd 6 / unset 77, pipelines 125,
+  redirs 153, scmds 59, variables 100, correction 153, path_check 52,
+  syntax_errors 101, parsing_hell 166, expansion 7, go_wild 37.
+- Bonus: groups, operators, wildcards, subshell, correction, syntax_errors,
+  go_wild. Plus crash/ (crash-resistance, e.g. `echo <<<> ok`) and no_env/
+  (launch without environment), funcheck/leaks.sh.
 
-`inc/types.h`:
+Current state of our suite: test_parse 37 + test_parse_tree 24 (parser/AST
+only); builtin pwd/cd/env + search_execution subprocess harnesses fail (exec
+not wired). No coverage for builtin exit codes/export/unset/echo -n,
+redirection behavior vs bash, pipelines e2e, expansion, syntax-error messages,
+path search (127/126), crash resistance, no_env, valgrind.
 
-- Insert `SYM_PROGRAM = 15` after `SYM_ACCEPT`; shift all nonterminals +1:
+Plan:
+- Prereq: non-interactive EOF → exit, and no prompt/echo when stdin is not a
+  tty, or the tester hangs/trashes stdout (with §7 signalling; rl_outstream
+  issue from §1).
+- After each feature phase run mstest and record per-category pass % here.
+- Category mapping: redirs/pipelines/scmds → §4 execution; expansion/variables
+  → §5; syntax_errors/correction/parsing_hell → §6 error handling;
+  builtins_* + path_check → §4/§6; crash → parser robustness; no_env → env
+  init; leaks.sh/valgrind → §8 arena refactor.
+- Port high-value parse-level cases (syntax errors, crash cases, heredoc
+  edges) into test/ so `make test` covers them without bash.
+- Note: bash --posix differences (export format, redir word splitting;
+  `--non-posix` flag available).
+- Gate: mstest after §4, then after each phase — zero new failures in
+  previously-passing categories.
 
-  | symbol | new | | symbol | new |
-  |---|---|---|---|---|
-  | SYM_ACCEPT | 14 | SYM_IO_REDIRECT | 29 |
-  | SYM_PROGRAM | 15 | SYM_IO_FILE | 30 |
-  | SYM_COMPLETE_COMMANDS | 16 | SYM_FILENAME | 31 |
-  | SYM_LIST | 17 | SYM_IO_HERE | 32 |
-  | SYM_PIPELINE | 18 | SYM_HERE_END | 33 |
-  | SYM_COMMAND | 19 | SYM_SEPARATOR | 34 |
-  | SYM_SUBSHELL | 20 | SYM_LINEBREAK | 35 |
-  | SYM_COMPOUND_LIST | 21 | | |
-  | SYM_TERM | 22 | | |
-  | SYM_SIMPLE_COMMAND | 23 | | |
-  | SYM_CMD_NAME | 24 | | |
-  | SYM_CMD_WORD | 25 | | |
-  | SYM_CMD_PREFIX | 26 | | |
-  | SYM_CMD_SUFFIX | 27 | | |
-  | SYM_REDIRECT_LIST | 28 | | |
+## 10. Code style consistency & helper reuse
+Audit done 5 Aug. Helpers created in the recent commits apply in 2 places
+left; style divergences listed. TODO comments are NOT normalized now.
 
-- Rule table grows to **46 slots** (rules 1–45; slot 0 unused).
+- Helper reuse:
+  - token_processor.c:135-137 walks data.pipeline.next_idx by hand — the only
+    manual chain walk left outside the parser; swap to node_next() (same as
+    shift_reduce.c). Will grow again when exec_list is wired (§4).
+  - get_offset_from_idx: KEEP (no change) — retained as the symmetric
+    counterpart of get_idx_from_offset even though nothing calls it yet.
+  - exit_mem_issue / is_expansion_start / arena helpers / print_* already used
+    consistently everywhere; reduce_chain_append + stack/push/pop helpers are
+    parser-internal by design (env's t_list append is a different domain).
+- Style fixes:
+  - #define EQUAL 0 duplicated in 6 files (token_processor.c, env_update.c,
+    env_get.c, env_delete.c, builtin_export.c, unset.c): centralize.
+  - GREEN/RESET duplicated in input.c + prompt.c: centralize or inline.
+  - Hazardous macros in inc/env.h: `# define _ "_"` (only used as the `_`
+    special-param key at execute_non_builtin.c:54) → rename SPECIAL_LAST_ARG;
+    `# define n "n"` inside a DEBUG block → rename or remove.
+  - `if(` / `return(` spacing (norm): get_pathname.c:30, execute_non_builtin.c:19
+    and :55, prompt.c:55, env_to_envp.c:18/36/39/42/43, lookahead.c:36/120.
+  - env_to_envp.c is off-style entirely (space indent, while(i <= 0)):
+    reindent to tabs (worst standalone file, 106 norm errors).
+  - Unify NULL-test style (if (!ptr) vs == NULL vs != NULL).
+  - Error-message formats diverge (perror with embedded \n + prefix vs bare
+    perror vs error_prefix var) — align with §6 error handling.
+- Gate: norminette clean (excluding #ifdef DEBUG blocks and 42 headers) +
+  make test green.
 
-## Phase 3 — `shift_reduce.c` rewrite
+## 11. Git history cleanup
+Rewrite the branch history: reorder commits, squash the wip steps, rename
+commit messages, and set a single author. This is destructive — do it before
+anything else and confirm scope/author first.
 
-Types (forward-declare the struct to break the typedef cycle):
+- Scope (to confirm): whole branch b232b63..f66e242 (parser bring-up + the
+  3 new commits). Branch is pushed (`playground/lalr_parser` is ahead 4 of
+  origin) — after rewriting, push with `--force-with-lease`.
+- Safety: create backup ref `git branch backup/pre-rewrite` + rely on reflog;
+  verify with `git fsck`; keep the old SHA map to diff trees.
+- Tooling:
+  - Reorder/squash/rename messages: `git rebase -i` (or `--rebase-merges`
+    if merges are kept; prefer linearizing and dropping the side-branch
+    merge commits 3bc27a2/9a1cdc9/940f4ea/8a43280/60a62cf since their
+    content is already in the branch).
+  - Author/committer rename (Nikita's + alicuza bot commits):
+    `git filter-branch --env-filter` or `git filter-repo --mailmap`
+    → single author, e.g. Stefan-Emanuel Ancuta <fainica24@gmail.com>
+    (confirm the name/email).
+- Proposed grouping (topological, oldest → newest):
+  1. grammar + shift_reduce bring-up: squash b232b63, 7c3000e, 16beca0,
+     0a0173e, 4ee3666, 208dc1c → one `feat: LALR parser core (bison tables +
+     shift/reduce driver)`.
+  2. parse_input refactors: squash f0d2cc1, 1c23002, 6be1cf7 → one
+     `refactor: parse_input into 25-line functions`.
+  3. debug traces: squash 7562105, abc041a, 789fb79, 69dc78d, 5b41cc6,
+     7ed1c95, d2726d6 → one or two `debug:` commits.
+  4. AST wiring: fdb9b1d, 5906d4d, 4e9b672 → `feat: wire AST chains,
+     subshells, early complete_commands execution`.
+  5. new work: keep 4f71bef (`fix: attach heredoc body to redir node`),
+     0ac1546 (`refactor: collapse reduction handlers`), f66e242
+     (`test: run search_execution as subprocesses`).
+- Gate: after rewrite, `make test` green + tree diff of each commit vs the
+  pre-rewrite SHA map.
 
-```c
-typedef struct s_rule t_rule;
-typedef uint64_t (*t_reduce)(t_ctx *, t_parser_state *, t_rule *);
-struct s_rule { t_reduce handler; uint32_t rhs_len; t_symbol_type lhs_type; };
-```
+## 12. Order
+1. Git history cleanup (§11) — confirm scope/author, then rewrite
+2. Review (§1) → 3. Strip script + norm cleanup (§2, §3) → 4. Style
+consistency (§10) → 5. Execution (§4) → 6. Expansion (§5)
+→ 7. Error handling (§6) → 8. Signalling (§7) → 9. Arena refactor (§8)
+→ 10. Test coverage gate (§9) — run mstest after execution and each phase.
 
-- Replace the broken `rule_dispatch_first`/`rule_dispatch_second` (OOB local
-  arrays, dangling returns, stray `;` at :139/:165) with one flat
-  `static const t_rule` table, **each entry verified against the regenerated
-  `yyr1`/`yyr2`**.
-- `shift_reduce(c, parse)` returns `t_lalr_action` (SHIFT / REDUCE / ACCEPT /
-  ERROR). `lookahead_type()` classifies the token (+ `PARSE_LOOKAHEAD_EOF` →
-  END).
-- `yypact[top]` is NINF → default reduce (`yydefact[top]`; `0` → LALR_ERROR).
-- `yytable[yyact]` ≤ 0 → reduce by `-yytable[yyact]`; else shift.
-- `shift()`: reaching YYFINAL → ACCEPT. Also guard on rule 1 (`$accept:
-  program $end`) → ACCEPT.
-- `reduce()`: capture `stack_at(rhs_len - 1)->token_idx` **before** `pop()`;
-  handler → use its node idx; NULL handler → inherit `stack_at(0)->node_idx`;
-  `push_nonterm(c, parse, lhs_type, node_idx, token_idx)` (this fixes the
-  nonterm `token_idx`, required by `handle_here_body`'s reset).
-- Add helpers: `stack_at(i)`, `node_alloc(...)`.
+## 13. TODO checklist
 
-### Handler map (new rule numbers)
+Confirmed decisions: starting point `5fcb28d`; rewrite scope =
+`5fcb28d..HEAD` (18 commits incl. `5fcb28d` itself); author →
+Stefan-Emanuel Ancuta <fainica24@gmail.com>; review FIRST, rewrite scope
+finalized from review, then the rest.
 
-| Rule | Production | Handler |
-|---|---|---|
-| 1 | $accept: program $end | guard → ACCEPT |
-| 2 | program: linebreak complete_commands linebreak | return `stack_at(1)->node_idx` |
-| 3 | program: linebreak | NULL (node 0 — empty line) |
-| 4 | complete_commands: complete_commands separator list | **chaining** (pastes) |
-| 5 | complete_commands: list | NULL |
-| 6 | list: pipeline | NULL |
-| 7 | list: list AND_IF linebreak pipeline | FLAG_AND_IF |
-| 8 | list: list OR_IF linebreak pipeline | FLAG_OR_IF |
-| 9 | pipeline: command | NODE_PIPELINE creator |
-| 10 | pipeline: pipeline PIPE linebreak command | pipeline append |
-| 11–13 | command: simple_command / subshell / subshell redirect_list | NULL |
-| 14 | subshell: OPAR compound_list CPAR | FLAG_SUBSHELL |
-| 15–18 | compound_list / term rules | NULL |
-| 19–23 | simple_command ×5 | NODE_COMMAND + arg/redir chain attach |
-| 24 | cmd_name: WORD | NODE_ARG leaf |
-| 25 | cmd_word: WORD | NODE_ARG leaf |
-| 26 | cmd_prefix: io_redirect | append-chain |
-| 27 | cmd_prefix: cmd_prefix io_redirect | append-chain |
-| 28 | cmd_suffix: io_redirect | NULL |
-| 29 | cmd_suffix: cmd_suffix io_redirect | append-chain |
-| 30 | cmd_suffix: WORD | NODE_ARG leaf |
-| 31 | cmd_suffix: cmd_suffix WORD | append-chain |
-| 32 | redirect_list: io_redirect | NULL |
-| 33 | redirect_list: redirect_list io_redirect | append-chain |
-| 34 | io_redirect: io_file | NULL |
-| 35 | io_redirect: io_here | NULL |
-| 36 | io_file: LESS filename | REDIR_IN flag |
-| 37 | io_file: GREAT filename | REDIR_OUT flag |
-| 38 | io_file: DGREAT filename | REDIR_APPEND flag |
-| 39 | filename: WORD | NODE_REDIR leaf |
-| 40 | io_here: DLESS here_end | **heredoc owner** (see Phase 4) |
-| 41 | here_end: WORD | NULL (inherits WORD's node 0) |
-| 42 | separator: NEWLINE | NULL |
-| 43 | separator: separator NEWLINE | NULL |
-| 44 | linebreak: separator | NULL |
-| 45 | linebreak: ε | `{NULL, 0, SYM_LINEBREAK}` |
-
-## Phase 4 — Heredoc subsystem (divert design, kept)
-
-- **`reduce_io_here` (rule 40)**: capture `parse->here.delim` from the
-  here_end token (`stack_at(0)->token_idx`, quote-strip pos+1/len-2 on
-  `TKN_HAS_QUOTES` — existing naive strip), set `PARSE_SAVE_TOKENS`, create
-  placeholder NODE_REDIR (`REDIR_HERE | REDIR_HAS_QUOTES?` if delimiter token
-  `TKN_HAS_QUOTES`, `arena_offset = 0`), return its idx.
-  → `t_here_state` **moves into `t_parser_state`** (`parse->here`; resolves the
-  parse_input.c:75 TODO). Drop the `here` param from `get_next_token` /
-  `shift_reduce`.
-- **`get_here_doc`**: on readline NULL → warning + append **empty BODY
-  marker** + return TRUE (not `return false` at lex_heredoc.c:66) — keeps the
-  replay bounded (no OOB past the token arena) and gives the placeholder a
-  valid empty body.
-- **`handle_here_body`**: write the body-token idx into the placeholder,
-  **guarded by `top->type == SYM_IO_HERE`** (in the after-pass case the symbol
-  is popped — skip the write, `arena_offset` stays 0 = empty body); keep the
-  `token_idx` reset; set `PARSE_HAS_SAVED_TOKENS` (now always, since
-  `get_here_doc` returns true).
-- **`delimit_lex_here`**: scan the finished body slice for `$`/backtick → OR
-  `TKN_HAS_EXPANSION` onto the body token (POSIX: expand iff delimiter
-  unquoted — `REDIR_HAS_QUOTES` excludes at exec). Return the appended token
-  idx. `REDIR_HAS_EXPAND` is dropped (scan is the fast-path).
-- **`is_delim_line`**: also accept `'\0'` as line terminator.
-- **Keep**: `PARSE_SAVE_TOKENS`, `PARSE_HAS_SAVED_TOKENS`, `PARSE_HERE_BODY`,
-  `TKN_IS_HERE_BODY`, `handle_saved_tokens`, `get_here_doc` semantics.
-- **Delete**: `try_reduce_symbol`, `PARSE_HERE_PENDING` (never set anywhere).
-
-Multi-heredoc `cat <<a <<b` works because b's `io_here` reduces during the
-replay of `<< b` at the `\n` lookahead and re-arms `PARSE_SAVE_TOKENS`.
-
-## Phase 5 — Driver (`parse_input.c`) + main
-
-- Status-gated loop: fetch token → divert intercept (**`PARSE_SAVE_TOKENS` &&
-  current token is a `\n` operator** → HERE_BODY, unchanged shape; non-`\n`
-  tokens dropped) → else `shift_reduce` → action switch.
-- **EOI** (`PARSE_LOOKAHEAD_EOF`):
-  1. If `PARSE_SAVE_TOKENS` pre-pass → **divert-at-EOF** (read body + replay
-     saved tokens, so `cat <<EOF ls &&` + EOF reports a syntax error instead
-     of false-accepting).
-  2. **Final pass**: repeated `shift_reduce` with EOF lookahead until
-     ACCEPT/ERROR.
-  3. **After-pass**: if `PARSE_SAVE_TOKENS` got set during the pass
-     (`cat <<EOF` + EOF) → read empty body + warning, guarded write.
-- No EOF tolerance needed — the wrapper accepts `cat\n` + EOF and bare empty
-  lines (fresh prompt).
-- LALR_ERROR → `PARSE_ERROR` + `minishell: syntax error near unexpected token
-  'X'` + break.
-- Delete local `#define YYFINAL` (parse_input.c:14) and the YYFINAL state
-  check (ACCEPT now comes from shift / rule-1 guard).
-- `main.c:88`: exec only if `!(parse.flags & PARSE_ERROR)`; else
-  `return_status = 2`.
-- `input.c`: unchanged except the Ctrl-D fix — `get_user_input` returns NULL
-  on readline NULL → clean shell exit.
-
-## Phase 6 — Headers
-
-- `minishell.h`: `PARSE_LOOKAHEAD_EOF 0x20` (next free after HERE_BODY 0x10),
-  `REDIR_HAS_QUOTES 0x80` (next free after REDIR_APPEND 0x40), `RULE_COUNT`
-  48 → **46**; decl updates: `shift_reduce`, `get_next_token` (no `here`
-  param), `delimit_lex_here` (returns idx); remove `try_reduce_symbol` decl.
-- `types.h`: SYM_PROGRAM + renumber, `t_here_state` inside `t_parser_state`,
-  `t_rule`/`t_reduce`.
-
----
-
-## Verification
-
-1. Bison regen: `.output` shows exactly 1 shift/reduce conflict.
-2. `make` builds clean.
-3. Smoke tests (interactive + piped where possible):
-
-| Case | Expected |
-|---|---|
-| `cat` | runs cat |
-| `cat\nls` (bracketed paste) | runs both |
-| empty line | fresh prompt (wrapper rule 3) |
-| `cat\n` then Ctrl-D | accepted (trailing linebreak via wrapper) |
-| `cat |` then Ctrl-D | syntax error |
-| `cat <<EOF` with `$?` body | body expanded at exec |
-| `cat <<'EOF'` | no expansion |
-| `cat <<a <<b` | two divert cycles, both bodies read |
-| `cat <<EOF ls` | body read before `ls` executes |
-| `cat <<EOF ls &&` then Ctrl-D | syntax error via replay |
-| Ctrl-D at prompt | clean exit |
+- [ ] Phase 0 — Review (§1)
+  - [ ] Walk 18 commits `5fcb28d..HEAD` chronologically, classify each
+        (pure refactor vs behavior change), note squash/rename intent
+  - [ ] Verify refactor equivalence: full `make test` (parse 37/37,
+        tree 24/24) + builtin/search_execution subprocess state
+  - [ ] Heredoc edge cases: `cat <<A <<B`, quoted delimiters
+  - [ ] Runner dispatch: `search_execution` subprocess case
+  - [ ] Record open items (exec_list stub, builtin subprocess silence,
+        rl_outstream in non-interactive mode)
+  - [ ] Write review notes + confirm test baseline
+- [ ] Phase 1 — Git history rewrite (§11)
+  - [ ] Finalize grouping from review notes
+  - [ ] Backup ref `backup/pre-rewrite` + reflog + `git fsck` + SHA map
+  - [ ] Rewrite `5fcb28d..HEAD` (18 commits), drop stray merges
+  - [ ] Author/committer → Stefan-Emanuel Ancuta <fainica24@gmail.com>
+  - [ ] Gate: `make test` green + tree diff vs pre-rewrite map
+  - [ ] Push `--force-with-lease`
+- [ ] Phase 2 — Norm cleanup + strip script (§2, §3)
+  - [ ] Split shift_reduce.c → reduce_handlers.c + rule_tables.c
+  - [ ] Extract reduce()/shift_reduce() driver (lines ~705-732)
+  - [ ] handle_here_body / get_here_doc, lookahead.c helpers
+  - [ ] tools/strip_debug.sh (keep #else branches)
+  - [ ] Gate: stripped /tmp copy builds with `make` + tests pass
+- [ ] Phase 3 — Style consistency (§10)
+  - [ ] Centralize EQUAL (6 files), GREEN/RESET, rename `_`/`n` macros
+  - [ ] Fix `if(`/`return(` spacing (get_pathname, execute_non_builtin,
+        prompt, env_to_envp, lookahead)
+  - [ ] Reindent env_to_envp.c to tabs
+  - [ ] Unify NULL-test style + error-message formats
+  - [ ] Gate: norminette clean + `make test` green
+- [ ] Phase 4 — Execution (§4)
+  - [ ] Wire exec_list(): argv from NODE_ARG chain, redirs (open/dup2,
+        heredoc via temp file/pipe), pipes, waitpid → c->return_status
+  - [ ] Subshell / && / || flags
+  - [ ] Obsolete init_command/build_command removal
+  - [ ] Gate: builtin subprocess tests green
+- [ ] Phase 5 — Expansion (§5)
+  - [ ] $VAR via env_get, $? via c->return_status, exec-time expansion
+  - [ ] Quote rules: single-quote no expansion, double-quote yes,
+        heredoc only with unquoted delimiter
+  - [ ] Command name expansion
+- [ ] Phase 6 — Error handling (§6)
+  - [ ] `minishell: <ctx>: <strerror>` for 127/126, redir/execve/fork/pipe
+  - [ ] Builtin error messages + exit codes, $? correctness
+  - [ ] Shell keeps running on all errors
+- [ ] Phase 7 — Signalling (§7)
+  - [ ] SIGINT: new prompt, async-safe handler (rl_replace_line etc.)
+  - [ ] SIGQUIT ignored interactively; children SIG_DFL before execve
+  - [ ] ctrl-D EOF exit path
+- [ ] Phase 8 — Arena refactor (§8)
+  - [ ] build_command argv/pathname, get_pathname joins, env_to_envp,
+        ft_split_with_empty, get_path_canonical_form, ft_split_key_value
+  - [ ] Verify with make test + valgrind (no per-parse leaks)
+- [ ] Phase 9 — Test coverage gate (§9)
+  - [ ] Prereq: non-interactive EOF exit + no prompt/echo when stdin
+        not a tty
+  - [ ] Run mstest after §4, then after each phase; record per-category
+        pass % here; zero new failures in passing categories
+  - [ ] Port high-value parse-level cases into test/
+  - [ ] Final full `make test` + norminette + mstest sweep
