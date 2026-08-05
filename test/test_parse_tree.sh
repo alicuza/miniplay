@@ -68,11 +68,11 @@ test_tree_args()
 	)"
 	expected="$(cat <<- \eof
 		COMMAND
-			[id 1] NODE_ARG(echo) [next 2]
-			[id 2] NODE_ARG(hi) [next 3]
-			[id 3] NODE_ARG(there) [next 0]
-			[id 4] NODE_COMMAND [next 0] [arg_head 1] [redir_head 0]
-			[id 5] NODE_PIPELINE [next 0] [command_head 4]
+			[id 1] NODE_ARG(echo) [next 4]
+			[id 2] NODE_COMMAND [next 0] [arg_head 1] [redir_head 0]
+			[id 3] NODE_ARG(hi) [next 0]
+			[id 4] NODE_ARG(there) [next 0]
+			[id 5] NODE_PIPELINE [next 0] [command_head 2]
 		eof
 	)"
 	assert_shell "$input" "$expected"
@@ -138,14 +138,14 @@ test_tree_and_if()
 	)"
 	expected="$(cat <<- \eof
 		COMMAND
-			[id 1] NODE_ARG(echo) [next 2]
-			[id 2] NODE_ARG(a) [next 0]
-			[id 3] NODE_COMMAND [next 0] [arg_head 1] [redir_head 0]
-			[id 4] NODE_PIPELINE [next 8] [command_head 3]
-			[id 5] NODE_ARG(echo) [next 6]
-			[id 6] NODE_ARG(b) [next 0]
-			[id 7] NODE_COMMAND [next 0] [arg_head 5] [redir_head 0]
-			[id 8] NODE_PIPELINE [next 0] [command_head 7] FLAG_AND_IF
+			[id 1] NODE_ARG(echo) [next 0]
+			[id 2] NODE_COMMAND [next 0] [arg_head 1] [redir_head 0]
+			[id 3] NODE_ARG(a) [next 0]
+			[id 4] NODE_PIPELINE [next 8] [command_head 2]
+			[id 5] NODE_ARG(echo) [next 7]
+			[id 6] NODE_COMMAND [next 0] [arg_head 5] [redir_head 0]
+			[id 7] NODE_ARG(b) [next 0]
+			[id 8] NODE_PIPELINE [next 0] [command_head 6] FLAG_AND_IF
 		eof
 	)"
 	assert_shell "$input" "$expected"
@@ -161,14 +161,14 @@ test_tree_or_if()
 	)"
 	expected="$(cat <<- \eof
 		COMMAND
-			[id 1] NODE_ARG(echo) [next 2]
-			[id 2] NODE_ARG(a) [next 0]
-			[id 3] NODE_COMMAND [next 0] [arg_head 1] [redir_head 0]
-			[id 4] NODE_PIPELINE [next 8] [command_head 3]
-			[id 5] NODE_ARG(echo) [next 6]
-			[id 6] NODE_ARG(b) [next 0]
-			[id 7] NODE_COMMAND [next 0] [arg_head 5] [redir_head 0]
-			[id 8] NODE_PIPELINE [next 0] [command_head 7] FLAG_OR_IF
+			[id 1] NODE_ARG(echo) [next 0]
+			[id 2] NODE_COMMAND [next 0] [arg_head 1] [redir_head 0]
+			[id 3] NODE_ARG(a) [next 0]
+			[id 4] NODE_PIPELINE [next 8] [command_head 2]
+			[id 5] NODE_ARG(echo) [next 7]
+			[id 6] NODE_COMMAND [next 0] [arg_head 5] [redir_head 0]
+			[id 7] NODE_ARG(b) [next 0]
+			[id 8] NODE_PIPELINE [next 0] [command_head 6] FLAG_OR_IF
 		eof
 	)"
 	assert_shell "$input" "$expected"
@@ -205,11 +205,11 @@ test_tree_redir_out()
 	)"
 	expected="$(cat <<- \eof
 		COMMAND
-			[id 1] NODE_ARG(echo) [next 2]
-			[id 2] NODE_ARG(hi) [next 0]
-			[id 3] NODE_REDIR(> out) [next 0] REDIR_OUT
-			[id 4] NODE_COMMAND [next 0] [arg_head 1] [redir_head 3]
-			[id 5] NODE_PIPELINE [next 0] [command_head 4]
+			[id 1] NODE_ARG(echo) [next 0]
+			[id 2] NODE_COMMAND [next 0] [arg_head 1] [redir_head 4]
+			[id 3] NODE_ARG(hi) [next 0]
+			[id 4] NODE_REDIR(> out) [next 0] REDIR_OUT
+			[id 5] NODE_PIPELINE [next 0] [command_head 2]
 		eof
 	)"
 	assert_shell "$input" "$expected"
@@ -225,11 +225,11 @@ test_tree_redir_append()
 	)"
 	expected="$(cat <<- \eof
 		COMMAND
-			[id 1] NODE_ARG(echo) [next 2]
-			[id 2] NODE_ARG(hi) [next 0]
-			[id 3] NODE_REDIR(>> out) [next 0] REDIR_APPEND
-			[id 4] NODE_COMMAND [next 0] [arg_head 1] [redir_head 3]
-			[id 5] NODE_PIPELINE [next 0] [command_head 4]
+			[id 1] NODE_ARG(echo) [next 0]
+			[id 2] NODE_COMMAND [next 0] [arg_head 1] [redir_head 4]
+			[id 3] NODE_ARG(hi) [next 0]
+			[id 4] NODE_REDIR(>> out) [next 0] REDIR_APPEND
+			[id 5] NODE_PIPELINE [next 0] [command_head 2]
 		eof
 	)"
 	assert_shell "$input" "$expected"
@@ -248,10 +248,10 @@ test_tree_redir_multiple()
 	expected="$(cat <<- \eof
 		COMMAND
 			[id 1] NODE_ARG(cat) [next 0]
-			[id 2] NODE_REDIR(< in) [next 3] REDIR_IN
-			[id 3] NODE_REDIR(> out) [next 0] REDIR_OUT
-			[id 4] NODE_COMMAND [next 0] [arg_head 1] [redir_head 2]
-			[id 5] NODE_PIPELINE [next 0] [command_head 4]
+			[id 2] NODE_REDIR(< in) [next 4] REDIR_IN
+			[id 3] NODE_COMMAND [next 0] [arg_head 1] [redir_head 2]
+			[id 4] NODE_REDIR(> out) [next 0] REDIR_OUT
+			[id 5] NODE_PIPELINE [next 0] [command_head 3]
 		eof
 	)"
 	assert_shell "$input" "$expected"
@@ -270,10 +270,10 @@ test_tree_redir_prefix()
 	expected="$(cat <<- \eof
 		COMMAND
 			[id 1] NODE_REDIR(> out) [next 0] REDIR_OUT
-			[id 2] NODE_ARG(echo) [next 3]
-			[id 3] NODE_ARG(hi) [next 0]
-			[id 4] NODE_COMMAND [next 0] [arg_head 2] [redir_head 1]
-			[id 5] NODE_PIPELINE [next 0] [command_head 4]
+			[id 2] NODE_ARG(echo) [next 4]
+			[id 3] NODE_COMMAND [next 0] [arg_head 2] [redir_head 1]
+			[id 4] NODE_ARG(hi) [next 0]
+			[id 5] NODE_PIPELINE [next 0] [command_head 3]
 		eof
 	)"
 	assert_shell "$input" "$expected"
@@ -345,10 +345,10 @@ test_tree_heredoc_multiple()
 	expected="$(cat <<- \eof
 		COMMAND
 			[id 1] NODE_ARG(cat) [next 0]
-			[id 2] NODE_REDIR(<< one\n) [next 3] REDIR_HERE
-			[id 3] NODE_REDIR(<< two\n) [next 0] REDIR_HERE
-			[id 4] NODE_COMMAND [next 0] [arg_head 1] [redir_head 2]
-			[id 5] NODE_PIPELINE [next 0] [command_head 4]
+			[id 2] NODE_REDIR(<< one\n) [next 4] REDIR_HERE
+			[id 3] NODE_COMMAND [next 0] [arg_head 1] [redir_head 2]
+			[id 4] NODE_REDIR(<< two\n) [next 0] REDIR_HERE
+			[id 5] NODE_PIPELINE [next 0] [command_head 3]
 		eof
 	)"
 	assert_shell "$input" "$expected"
@@ -435,20 +435,20 @@ test_tree_subshell_nested()
 	)"
 	expected="$(cat <<- \eof
 		COMMAND
-			[id 1] NODE_ARG(echo) [next 2]
-			[id 2] NODE_ARG(a) [next 0]
-			[id 3] NODE_COMMAND [next 0] [arg_head 1] [redir_head 0]
-			[id 4] NODE_PIPELINE [next 8] [command_head 3]
-			[id 5] NODE_ARG(echo) [next 6]
-			[id 6] NODE_ARG(b) [next 0]
-			[id 7] NODE_COMMAND [next 0] [arg_head 5] [redir_head 0]
-			[id 8] NODE_PIPELINE [next 0] [command_head 7] FLAG_AND_IF
+			[id 1] NODE_ARG(echo) [next 0]
+			[id 2] NODE_COMMAND [next 0] [arg_head 1] [redir_head 0]
+			[id 3] NODE_ARG(a) [next 0]
+			[id 4] NODE_PIPELINE [next 8] [command_head 2]
+			[id 5] NODE_ARG(echo) [next 7]
+			[id 6] NODE_COMMAND [next 0] [arg_head 5] [redir_head 0]
+			[id 7] NODE_ARG(b) [next 0]
+			[id 8] NODE_PIPELINE [next 0] [command_head 6] FLAG_AND_IF
 			[id 9] NODE_COMMAND [next 0] [arg_head 4] [redir_head 0] FLAG_SUBSHELL
 			[id 10] NODE_PIPELINE [next 14] [command_head 9]
-			[id 11] NODE_ARG(echo) [next 12]
-			[id 12] NODE_ARG(c) [next 0]
-			[id 13] NODE_COMMAND [next 0] [arg_head 11] [redir_head 0]
-			[id 14] NODE_PIPELINE [next 0] [command_head 13] FLAG_OR_IF
+			[id 11] NODE_ARG(echo) [next 13]
+			[id 12] NODE_COMMAND [next 0] [arg_head 11] [redir_head 0]
+			[id 13] NODE_ARG(c) [next 0]
+			[id 14] NODE_PIPELINE [next 0] [command_head 12] FLAG_OR_IF
 		eof
 	)"
 	assert_shell "$input" "$expected"

@@ -104,12 +104,6 @@ static t_node	*node_at(t_ctx *c, uint64_t idx)
 	return (get_ptr_from_idx(&c->arena[AT_COMMAND], idx));
 }
 
-static uint64_t	node_index(t_ctx *c, t_node *node)
-{
-	return (get_idx_from_offset(&c->arena[AT_COMMAND],
-			(uint64_t)((char *)node - c->arena[AT_COMMAND].buf)));
-}
-
 static t_symbol	*stack_at(t_ctx *c, t_parser_state *parse, t_rule *rule,
 		uint32_t i)
 {
@@ -121,154 +115,160 @@ static t_symbol	*stack_at(t_ctx *c, t_parser_state *parse, t_rule *rule,
 			stack->offset - (rule->rhs_len - i) * stack->stride));
 }
 
-static uint64_t	chain_append(t_ctx *c, uint64_t head, uint64_t new)
+static uint64_t	node_next(t_node *node)
+{
+	if (node->type == NODE_COMMAND)
+		return (node->data.command.next);
+	if (node->type == NODE_PIPELINE)
+		return (node->data.pipeline.next_idx);
+	if (node->type == NODE_REDIR)
+		return (node->data.redir.next);
+	return (node->data.arg.next);
+}
+
+static void	node_link(t_node *node, uint64_t next)
+{
+	if (node->type == NODE_COMMAND)
+		node->data.command.next = next;
+	else if (node->type == NODE_PIPELINE)
+		node->data.pipeline.next_idx = next;
+	else if (node->type == NODE_REDIR)
+		node->data.redir.next = next;
+	else
+		node->data.arg.next = next;
+}
+
+static uint64_t	reduce_chain_append(t_ctx *c, uint64_t head, uint64_t new)
 {
 	t_node	*node;
+	uint64_t	cur;
 
 	if (!new)
 		return (head);
 	if (!head)
 		return (new);
-	node = node_at(c, head);
-	while (node->data.arg.next)
-		node = node_at(c, node->data.arg.next);
-	node->data.arg.next = new;
-	return (head);
-}
-
-static uint64_t	arg_leaf(t_ctx *c, t_parser_state *parse, t_rule *rule)
-{
-	t_symbol	*symbol;
-	t_token		*token;
-	uint64_t	idx;
-
-	symbol = stack_at(c, parse, rule, rule->rhs_len - 1);
-	token = get_ptr_from_idx(&c->arena[AT_TOKENS], symbol->token_idx);
-	idx = node_alloc(c, NODE_ARG);
-	node_at(c, idx)->data.arg.arena_offset = token->offset;
-	return (idx);
-}
-
-static uint64_t	redir_leaf(t_ctx *c, t_parser_state *parse, t_rule *rule)
-{
-	t_symbol	*symbol;
-	t_token		*token;
-	uint64_t	idx;
-
-	symbol = stack_at(c, parse, rule, rule->rhs_len - 1);
-	token = get_ptr_from_idx(&c->arena[AT_TOKENS], symbol->token_idx);
-	idx = node_alloc(c, NODE_REDIR);
-	node_at(c, idx)->data.redir.arena_offset = token->offset;
-	return (idx);
-}
-
-/* split a mixed arg/redir chain into two homogeneous chains */
-static void	split_suffix(t_ctx *c, uint64_t suffix, uint64_t *args,
-		uint64_t *redirs)
-{
-	t_node		*node;
-	uint64_t	cur;
-
-	cur = suffix;
+	cur = head;
 	while (cur)
 	{
 		node = node_at(c, cur);
-		cur = node->data.arg.next;
-		node->data.arg.next = 0;
-		if (node->type == NODE_ARG)
-			*args = chain_append(c, *args, node_index(c, node));
-		else
-			*redirs = chain_append(c, *redirs, node_index(c, node));
+		cur = node_next(node);
 	}
+	node_link(node, new);
+	return (head);
+}
+
+static uint64_t	reduce_leaf(t_ctx *c, t_parser_state *parse, t_rule *rule,
+		t_node_type type)
+{
+	t_symbol	*symbol;
+	t_token		*token;
+	uint64_t	idx;
+
+	symbol = stack_at(c, parse, rule, rule->rhs_len - 1);
+	token = get_ptr_from_idx(&c->arena[AT_TOKENS], symbol->token_idx);
+	idx = node_alloc(c, type);
+	if (type == NODE_REDIR)
+		node_at(c, idx)->data.redir.arena_offset = token->offset;
+	else
+		node_at(c, idx)->data.arg.arena_offset = token->offset;
+	return (idx);
+}
+
+static uint64_t	reduce_arg_leaf(t_ctx *c, t_parser_state *parse, t_rule *rule)
+{
+	return (reduce_leaf(c, parse, rule, NODE_ARG));
+}
+
+static uint64_t	reduce_redir_leaf(t_ctx *c, t_parser_state *parse, t_rule *rule)
+{
+	return (reduce_leaf(c, parse, rule, NODE_REDIR));
 }
 
 /* -------- reduction handlers (index == bison rule number) ------------------ */
 static t_lalr_action	reduce(t_ctx *c, t_parser_state *parse, int32_t action);
 static uint64_t	reduce_program(t_ctx *c, t_parser_state *parse, t_rule *rule);
-static uint64_t	reduce_complete_commands(t_ctx *c, t_parser_state *parse, t_rule *rule);
-static uint64_t	reduce_list_and_if(t_ctx *c, t_parser_state *parse, t_rule *rule);
-static uint64_t	reduce_list_or_if(t_ctx *c, t_parser_state *parse, t_rule *rule);
 static uint64_t	reduce_pipeline_create(t_ctx *c, t_parser_state *parse, t_rule *rule);
 static uint64_t	reduce_pipeline_append(t_ctx *c, t_parser_state *parse, t_rule *rule);
+static uint64_t	reduce_list_append(t_ctx *c, t_parser_state *parse, t_rule *rule);
+static uint64_t	reduce_list_conditional(t_ctx *c, t_parser_state *parse,
+		t_rule *rule);
 static uint64_t	reduce_simple_command(t_ctx *c, t_parser_state *parse, t_rule *rule);
-static uint64_t	reduce_cmd_name(t_ctx *c, t_parser_state *parse, t_rule *rule);
-static uint64_t	reduce_cmd_word(t_ctx *c, t_parser_state *parse, t_rule *rule);
-static uint64_t	reduce_cmd_arg(t_ctx *c, t_parser_state *parse, t_rule *rule);
-static uint64_t	reduce_cmd_arg_append(t_ctx *c, t_parser_state *parse, t_rule *rule);
-static uint64_t	reduce_chain_append(t_ctx *c, t_parser_state *parse, t_rule *rule);
-static uint64_t	reduce_io_file_LESS(t_ctx *c, t_parser_state *parse, t_rule *rule);
-static uint64_t	reduce_io_file_GREAT(t_ctx *c, t_parser_state *parse, t_rule *rule);
-static uint64_t	reduce_io_file_DGREAT(t_ctx *c, t_parser_state *parse, t_rule *rule);
-static uint64_t	reduce_filename(t_ctx *c, t_parser_state *parse, t_rule *rule);
+static uint64_t	reduce_simple_command_bare(t_ctx *c, t_parser_state *parse,
+		t_rule *rule);
+static uint64_t	reduce_cmd_suffix(t_ctx *c, t_parser_state *parse, t_rule *rule);
+static uint64_t	reduce_redir_append(t_ctx *c, t_parser_state *parse, t_rule *rule);
+static uint64_t	reduce_io_file(t_ctx *c, t_parser_state *parse, t_rule *rule);
 static uint64_t	reduce_io_here(t_ctx *c, t_parser_state *parse, t_rule *rule);
 static uint64_t	reduce_command_redirects(t_ctx *c, t_parser_state *parse,
 		t_rule *rule);
 static uint64_t	reduce_compound_list(t_ctx *c, t_parser_state *parse,
 		t_rule *rule);
 static uint64_t	reduce_subshell(t_ctx *c, t_parser_state *parse, t_rule *rule);
-static uint64_t	reduce_term_append(t_ctx *c, t_parser_state *parse, t_rule *rule);
 
 static t_rule	rule_dispatch_first(int32_t action)
 {
-	t_rule	rule[16];
-	rule[0] = (t_rule){NULL, 0, SYM_EOF};
-	rule[1] = (t_rule){NULL, 2, SYM_ACCEPT};
-	rule[2] = (t_rule){reduce_program, 3, SYM_PROGRAM};
-	rule[3] = (t_rule){NULL, 1, SYM_PROGRAM};
-	rule[4] = (t_rule){reduce_complete_commands, 3, SYM_COMPLETE_COMMANDS};
-	rule[5] = (t_rule){NULL, 1, SYM_COMPLETE_COMMANDS};
-	rule[6] = (t_rule){NULL, 1, SYM_LIST};
-	rule[7] = (t_rule){reduce_list_and_if, 4, SYM_LIST};
-	rule[8] = (t_rule){reduce_list_or_if, 4, SYM_LIST};
-	rule[9] = (t_rule){reduce_pipeline_create, 1, SYM_PIPELINE};
-	rule[10] = (t_rule){reduce_pipeline_append, 4, SYM_PIPELINE};
-	rule[11] = (t_rule){NULL, 1, SYM_COMMAND};
-	rule[12] = (t_rule){NULL, 1, SYM_COMMAND};
-	rule[13] = (t_rule){reduce_command_redirects, 2, SYM_COMMAND};
-	rule[14] = (t_rule){reduce_subshell, 3, SYM_SUBSHELL};
-	rule[15] = (t_rule){reduce_compound_list, 2, SYM_COMPOUND_LIST};
+	static const t_rule	rule[16] = {
+		{NULL, 0, SYM_EOF},
+		{NULL, 2, SYM_ACCEPT},
+		{reduce_program, 3, SYM_PROGRAM},
+		{NULL, 1, SYM_PROGRAM},
+		{reduce_list_append, 3, SYM_COMPLETE_COMMANDS},
+		{NULL, 1, SYM_COMPLETE_COMMANDS},
+		{NULL, 1, SYM_LIST},
+		{reduce_list_conditional, 4, SYM_LIST},
+		{reduce_list_conditional, 4, SYM_LIST},
+		{reduce_pipeline_create, 1, SYM_PIPELINE},
+		{reduce_pipeline_append, 4, SYM_PIPELINE},
+		{NULL, 1, SYM_COMMAND},
+		{NULL, 1, SYM_COMMAND},
+		{reduce_command_redirects, 2, SYM_COMMAND},
+		{reduce_subshell, 3, SYM_SUBSHELL},
+		{reduce_compound_list, 2, SYM_COMPOUND_LIST}
+	};
 	return (rule[action]);
 }
 
 static t_rule	rule_dispatch_second(int32_t action)
 {
-	t_rule	rule[16];
-	rule[0] = (t_rule){reduce_compound_list, 3, SYM_COMPOUND_LIST};
-	rule[1] = (t_rule){reduce_term_append, 3, SYM_TERM};
-	rule[2] = (t_rule){NULL, 1, SYM_TERM};
-	rule[3] = (t_rule){reduce_simple_command, 3, SYM_SIMPLE_COMMAND};
-	rule[4] = (t_rule){reduce_simple_command, 2, SYM_SIMPLE_COMMAND};
-	rule[5] = (t_rule){reduce_simple_command, 1, SYM_SIMPLE_COMMAND};
-	rule[6] = (t_rule){reduce_simple_command, 2, SYM_SIMPLE_COMMAND};
-	rule[7] = (t_rule){reduce_simple_command, 1, SYM_SIMPLE_COMMAND};
-	rule[8] = (t_rule){reduce_cmd_name, 1, SYM_CMD_NAME};
-	rule[9] = (t_rule){reduce_cmd_word, 1, SYM_CMD_WORD};
-	rule[10] = (t_rule){NULL, 1, SYM_CMD_PREFIX};
-	rule[11] = (t_rule){reduce_chain_append, 2, SYM_CMD_PREFIX};
-	rule[12] = (t_rule){NULL, 1, SYM_CMD_SUFFIX};
-	rule[13] = (t_rule){reduce_chain_append, 2, SYM_CMD_SUFFIX};
-	rule[14] = (t_rule){reduce_cmd_arg, 1, SYM_CMD_SUFFIX};
-	rule[15] = (t_rule){reduce_cmd_arg_append, 2, SYM_CMD_SUFFIX};
+	static const t_rule	rule[16] = {
+		{reduce_compound_list, 3, SYM_COMPOUND_LIST},
+		{reduce_list_append, 3, SYM_TERM},
+		{NULL, 1, SYM_TERM},
+		{reduce_simple_command, 3, SYM_SIMPLE_COMMAND},
+		{reduce_simple_command_bare, 2, SYM_SIMPLE_COMMAND},
+		{reduce_simple_command_bare, 1, SYM_SIMPLE_COMMAND},
+		{reduce_simple_command, 2, SYM_SIMPLE_COMMAND},
+		{reduce_simple_command_bare, 1, SYM_SIMPLE_COMMAND},
+		{reduce_arg_leaf, 1, SYM_CMD_NAME},
+		{reduce_arg_leaf, 1, SYM_CMD_WORD},
+		{NULL, 1, SYM_CMD_PREFIX},
+		{reduce_redir_append, 2, SYM_CMD_PREFIX},
+		{reduce_cmd_suffix, 1, SYM_CMD_SUFFIX},
+		{reduce_cmd_suffix, 2, SYM_CMD_SUFFIX},
+		{reduce_cmd_suffix, 1, SYM_CMD_SUFFIX},
+		{reduce_cmd_suffix, 2, SYM_CMD_SUFFIX}
+	};
 	return (rule[action - 16]);
 }
 
 static t_rule	rule_dispatch_third(int32_t action)
 {
-	t_rule	rule[14];
-	rule[0] = (t_rule){NULL, 1, SYM_REDIRECT_LIST};
-	rule[1] = (t_rule){reduce_chain_append, 2, SYM_REDIRECT_LIST};
-	rule[2] = (t_rule){NULL, 1, SYM_IO_REDIRECT};
-	rule[3] = (t_rule){NULL, 1, SYM_IO_REDIRECT};
-	rule[4] = (t_rule){reduce_io_file_LESS, 2, SYM_IO_FILE};
-	rule[5] = (t_rule){reduce_io_file_GREAT, 2, SYM_IO_FILE};
-	rule[6] = (t_rule){reduce_io_file_DGREAT, 2, SYM_IO_FILE};
-	rule[7] = (t_rule){reduce_filename, 1, SYM_FILENAME};
-	rule[8] = (t_rule){reduce_io_here, 2, SYM_IO_HERE};
-	rule[9] = (t_rule){NULL, 1, SYM_HERE_END};
-	rule[10] = (t_rule){NULL, 1, SYM_SEPARATOR};
-	rule[11] = (t_rule){NULL, 2, SYM_SEPARATOR};
-	rule[12] = (t_rule){NULL, 1, SYM_LINEBREAK};
-	rule[13] = (t_rule){NULL, 0, SYM_LINEBREAK};
+	static const t_rule	rule[14] = {
+		{NULL, 1, SYM_REDIRECT_LIST},
+		{reduce_redir_append, 2, SYM_REDIRECT_LIST},
+		{NULL, 1, SYM_IO_REDIRECT},
+		{NULL, 1, SYM_IO_REDIRECT},
+		{reduce_io_file, 2, SYM_IO_FILE},
+		{reduce_io_file, 2, SYM_IO_FILE},
+		{reduce_io_file, 2, SYM_IO_FILE},
+		{reduce_redir_leaf, 1, SYM_FILENAME},
+		{reduce_io_here, 2, SYM_IO_HERE},
+		{NULL, 1, SYM_HERE_END},
+		{NULL, 1, SYM_SEPARATOR},
+		{NULL, 2, SYM_SEPARATOR},
+		{NULL, 1, SYM_LINEBREAK},
+		{NULL, 0, SYM_LINEBREAK}
+	};
 	return (rule[action - 32]);
 }
 
@@ -338,72 +338,35 @@ static uint64_t	reduce_program(t_ctx *c, t_parser_state *parse, t_rule *rule)
 	return (stack_at(c, parse, rule, 1)->node_idx);
 }
 
-static uint64_t	reduce_complete_commands(t_ctx *c, t_parser_state *parse,
+static uint64_t	reduce_list_append(t_ctx *c, t_parser_state *parse,
 		t_rule *rule)
 {
-	t_node		*node;
-	uint64_t	head;
-	uint64_t	new;
-
-	head = stack_at(c, parse, rule, 0)->node_idx;
-	new = stack_at(c, parse, rule, 2)->node_idx;
-	if (!head)
-		return (new);
-	node = node_at(c, head);
-	while (node->data.pipeline.next_idx)
-		node = node_at(c, node->data.pipeline.next_idx);
-	node->data.pipeline.next_idx = new;
-	return (head);
+	return (reduce_chain_append(c, stack_at(c, parse, rule, 0)->node_idx,
+			stack_at(c, parse, rule, rule->rhs_len - 1)->node_idx));
 }
 
-static uint64_t	reduce_list_and_if(t_ctx *c, t_parser_state *parse,
+static uint64_t	reduce_list_conditional(t_ctx *c, t_parser_state *parse,
 		t_rule *rule)
 {
 	t_node		*node;
-	uint64_t	head;
-	uint64_t	new;
 
-	head = stack_at(c, parse, rule, 0)->node_idx;
-	new = stack_at(c, parse, rule, 3)->node_idx;
-	node = node_at(c, new);
-	node->flags |= FLAG_AND_IF;
-	if (!head)
-		return (new);
-	node = node_at(c, head);
-	while (node->data.pipeline.next_idx)
-		node = node_at(c, node->data.pipeline.next_idx);
-	node->data.pipeline.next_idx = new;
-	return (head);
-}
-
-static uint64_t	reduce_list_or_if(t_ctx *c, t_parser_state *parse,
-		t_rule *rule)
-{
-	t_node		*node;
-	uint64_t	head;
-	uint64_t	new;
-
-	head = stack_at(c, parse, rule, 0)->node_idx;
-	new = stack_at(c, parse, rule, 3)->node_idx;
-	node = node_at(c, new);
-	node->flags |= FLAG_OR_IF;
-	if (!head)
-		return (new);
-	node = node_at(c, head);
-	while (node->data.pipeline.next_idx)
-		node = node_at(c, node->data.pipeline.next_idx);
-	node->data.pipeline.next_idx = new;
-	return (head);
+	node = node_at(c, stack_at(c, parse, rule, 3)->node_idx);
+	if (stack_at(c, parse, rule, 1)->type == SYM_AND_IF)
+		node->flags |= FLAG_AND_IF;
+	else
+		node->flags |= FLAG_OR_IF;
+	return (reduce_list_append(c, parse, rule));
 }
 
 static uint64_t	reduce_pipeline_create(t_ctx *c, t_parser_state *parse,
 		t_rule *rule)
 {
+	t_node		*node;
 	uint64_t	p;
 
 	p = node_alloc(c, NODE_PIPELINE);
-	node_at(c, p)->data.pipeline.command_head_idx
-		= stack_at(c, parse, rule, 0)->node_idx;
+	node = node_at(c, p);
+	node->data.pipeline.command_head_idx = stack_at(c, parse, rule, 0)->node_idx;
 	return (p);
 }
 
@@ -411,139 +374,114 @@ static uint64_t	reduce_pipeline_append(t_ctx *c, t_parser_state *parse,
 		t_rule *rule)
 {
 	t_node		*node;
-	uint64_t	head;
-	uint64_t	new_cmd;
-	uint64_t	cur_cmd;
 
-	head = stack_at(c, parse, rule, 0)->node_idx;
-	new_cmd = stack_at(c, parse, rule, 3)->node_idx;
-	node = node_at(c, head);
-	cur_cmd = node->data.pipeline.command_head_idx;
-	while (node_at(c, cur_cmd)->data.command.next)
-		cur_cmd = node_at(c, cur_cmd)->data.command.next;
-	node_at(c, cur_cmd)->data.command.next = new_cmd;
-	return (head);
-}
-
-static void	simple_command_positions(t_ctx *c, t_parser_state *parse,
-		t_rule *rule, uint64_t *name, uint64_t *prefix, uint64_t *suffix)
-{
-	*name = 0;
-	*prefix = 0;
-	*suffix = 0;
-	if (rule->rhs_len == 3)
-	{
-		*prefix = stack_at(c, parse, rule, 0)->node_idx;
-		*name = stack_at(c, parse, rule, 1)->node_idx;
-		*suffix = stack_at(c, parse, rule, 2)->node_idx;
-	}
-	else if (rule->rhs_len == 2)
-	{
-		if (stack_at(c, parse, rule, 1)->type == SYM_CMD_SUFFIX)
-		{
-			*name = stack_at(c, parse, rule, 0)->node_idx;
-			*suffix = stack_at(c, parse, rule, 1)->node_idx;
-		}
-		else
-		{
-			*prefix = stack_at(c, parse, rule, 0)->node_idx;
-			*name = stack_at(c, parse, rule, 1)->node_idx;
-		}
-	}
-	else if (stack_at(c, parse, rule, 0)->type == SYM_CMD_PREFIX)
-		*prefix = stack_at(c, parse, rule, 0)->node_idx;
-	else
-		*name = stack_at(c, parse, rule, 0)->node_idx;
+	node = node_at(c, stack_at(c, parse, rule, 0)->node_idx);
+	node->data.pipeline.command_head_idx = reduce_chain_append(c,
+			node->data.pipeline.command_head_idx,
+			stack_at(c, parse, rule, 3)->node_idx);
+	return (stack_at(c, parse, rule, 0)->node_idx);
 }
 
 static uint64_t	reduce_simple_command(t_ctx *c, t_parser_state *parse,
 		t_rule *rule)
 {
+	t_node		*cmd;
+	uint64_t	cmd_idx;
 	uint64_t	name;
 	uint64_t	prefix;
-	uint64_t	suffix;
-	uint64_t	args;
-	uint64_t	redirs;
-	uint64_t	cmd;
 
-	simple_command_positions(c, parse, rule, &name, &prefix, &suffix);
-	args = 0;
-	redirs = 0;
-	split_suffix(c, suffix, &args, &redirs);
-	if (name)
-		args = chain_append(c, name, args);
-	cmd = node_alloc(c, NODE_COMMAND);
-	node_at(c, cmd)->data.command.arg_head_idx = args;
-	node_at(c, cmd)->data.command.redir_head_idx
-		= chain_append(c, prefix, redirs);
-	return (cmd);
+	cmd_idx = stack_at(c, parse, rule, rule->rhs_len - 1)->node_idx;
+	name = stack_at(c, parse, rule, rule->rhs_len - 2)->node_idx;
+	prefix = 0;
+	if (rule->rhs_len == 3)
+		prefix = stack_at(c, parse, rule, 0)->node_idx;
+	cmd = node_at(c, cmd_idx);
+	cmd->data.command.arg_head_idx = reduce_chain_append(c, name,
+			cmd->data.command.arg_head_idx);
+	cmd->data.command.redir_head_idx = reduce_chain_append(c, prefix,
+			cmd->data.command.redir_head_idx);
+	return (cmd_idx);
 }
 
-static uint64_t	reduce_cmd_name(t_ctx *c, t_parser_state *parse, t_rule *rule)
-{
-	return (arg_leaf(c, parse, rule));
-}
-
-static uint64_t	reduce_cmd_word(t_ctx *c, t_parser_state *parse, t_rule *rule)
-{
-	return (arg_leaf(c, parse, rule));
-}
-
-static uint64_t	reduce_cmd_arg(t_ctx *c, t_parser_state *parse, t_rule *rule)
-{
-	return (arg_leaf(c, parse, rule));
-}
-
-static uint64_t	reduce_cmd_arg_append(t_ctx *c, t_parser_state *parse,
+static uint64_t	reduce_simple_command_bare(t_ctx *c, t_parser_state *parse,
 		t_rule *rule)
 {
-	return (chain_append(c, stack_at(c, parse, rule, 0)->node_idx,
-			arg_leaf(c, parse, rule)));
+	t_node		*cmd;
+	uint64_t	cmd_idx;
+	uint64_t	name;
+	uint64_t	prefix;
+
+	cmd_idx = node_alloc(c, NODE_COMMAND);
+	cmd = node_at(c, cmd_idx);
+	name = 0;
+	prefix = 0;
+	if (rule->rhs_len == 2)
+	{
+		prefix = stack_at(c, parse, rule, 0)->node_idx;
+		name = stack_at(c, parse, rule, 1)->node_idx;
+	}
+	else if (stack_at(c, parse, rule, 0)->type == SYM_CMD_PREFIX)
+		prefix = stack_at(c, parse, rule, 0)->node_idx;
+	else
+		name = stack_at(c, parse, rule, 0)->node_idx;
+	cmd->data.command.arg_head_idx = name;
+	cmd->data.command.redir_head_idx = prefix;
+	return (cmd_idx);
 }
 
-static uint64_t	reduce_chain_append(t_ctx *c, t_parser_state *parse,
+static uint64_t	reduce_cmd_suffix(t_ctx *c, t_parser_state *parse,
 		t_rule *rule)
 {
-	return (chain_append(c, stack_at(c, parse, rule, 0)->node_idx,
+	t_node		*cmd;
+	t_symbol	*last;
+	uint64_t	cmd_idx;
+
+	if (rule->rhs_len == 1)
+		cmd_idx = node_alloc(c, NODE_COMMAND);
+	else
+		cmd_idx = stack_at(c, parse, rule, 0)->node_idx;
+	last = stack_at(c, parse, rule, rule->rhs_len - 1);
+	cmd = node_at(c, cmd_idx);
+	if (last->type == SYM_IO_REDIRECT)
+		cmd->data.command.redir_head_idx = reduce_chain_append(c,
+				cmd->data.command.redir_head_idx, last->node_idx);
+	else
+		cmd->data.command.arg_head_idx = reduce_chain_append(c,
+				cmd->data.command.arg_head_idx,
+				reduce_arg_leaf(c, parse, rule));
+	return (cmd_idx);
+}
+
+static uint64_t	reduce_redir_append(t_ctx *c, t_parser_state *parse,
+		t_rule *rule)
+{
+	return (reduce_chain_append(c, stack_at(c, parse, rule, 0)->node_idx,
 			stack_at(c, parse, rule, 1)->node_idx));
 }
 
-static uint64_t	reduce_io_file_LESS(t_ctx *c, t_parser_state *parse,
-		t_rule *rule)
+static uint64_t	reduce_io_file(t_ctx *c, t_parser_state *parse, t_rule *rule)
 {
 	t_node		*node;
+	uint64_t	idx;
 
-	node = node_at(c, stack_at(c, parse, rule, 1)->node_idx);
-	node->flags |= REDIR_IN;
-	node->data.redir.fd = STDIN_FILENO;
-	return (stack_at(c, parse, rule, 1)->node_idx);
-}
-
-static uint64_t	reduce_io_file_GREAT(t_ctx *c, t_parser_state *parse,
-		t_rule *rule)
-{
-	t_node		*node;
-
-	node = node_at(c, stack_at(c, parse, rule, 1)->node_idx);
-	node->flags |= REDIR_OUT;
-	node->data.redir.fd = STDOUT_FILENO;
-	return (stack_at(c, parse, rule, 1)->node_idx);
-}
-
-static uint64_t	reduce_io_file_DGREAT(t_ctx *c, t_parser_state *parse,
-		t_rule *rule)
-{
-	t_node		*node;
-
-	node = node_at(c, stack_at(c, parse, rule, 1)->node_idx);
-	node->flags |= REDIR_APPEND;
-	node->data.redir.fd = STDOUT_FILENO;
-	return (stack_at(c, parse, rule, 1)->node_idx);
-}
-
-static uint64_t	reduce_filename(t_ctx *c, t_parser_state *parse, t_rule *rule)
-{
-	return (redir_leaf(c, parse, rule));
+	idx = stack_at(c, parse, rule, 1)->node_idx;
+	node = node_at(c, idx);
+	if (stack_at(c, parse, rule, 0)->type == SYM_LESS)
+	{
+		node->flags |= REDIR_IN;
+		node->data.redir.fd = STDIN_FILENO;
+	}
+	else if (stack_at(c, parse, rule, 0)->type == SYM_GREAT)
+	{
+		node->flags |= REDIR_OUT;
+		node->data.redir.fd = STDOUT_FILENO;
+	}
+	else
+	{
+		node->flags |= REDIR_APPEND;
+		node->data.redir.fd = STDOUT_FILENO;
+	}
+	return (idx);
 }
 
 static uint64_t	reduce_io_here(t_ctx *c, t_parser_state *parse, t_rule *rule)
@@ -605,24 +543,6 @@ static uint64_t	reduce_subshell(t_ctx *c, t_parser_state *parse, t_rule *rule)
 	node->flags |= FLAG_SUBSHELL;
 	node->data.command.arg_head_idx = stack_at(c, parse, rule, 1)->node_idx;
 	return (idx);
-}
-
-static uint64_t	reduce_term_append(t_ctx *c, t_parser_state *parse,
-		t_rule *rule)
-{
-	t_node		*node;
-	uint64_t	head;
-	uint64_t	new;
-
-	head = stack_at(c, parse, rule, 0)->node_idx;
-	new = stack_at(c, parse, rule, 2)->node_idx;
-	if (!head)
-		return (new);
-	node = node_at(c, head);
-	while (node->data.pipeline.next_idx)
-		node = node_at(c, node->data.pipeline.next_idx);
-	node->data.pipeline.next_idx = new;
-	return (head);
 }
 
 /* -------- LALR driver ------------------------------------------------------ */
@@ -786,6 +706,7 @@ t_lalr_action	shift_reduce(t_ctx *c, t_parser_state *parse,
 		t_lexer_state *lex)
 {
 	t_arena		*tokens;
+	t_token		*token;
 	int32_t		action;
 	int32_t		index;
 	int32_t		lookahead;
@@ -798,7 +719,10 @@ t_lalr_action	shift_reduce(t_ctx *c, t_parser_state *parse,
 	if (parse->flags & PARSE_LOOKAHEAD_EOF)
 		lookahead = SYM_EOF;
 	else
-		lookahead = classify_token(c, get_ptr_from_idx(tokens, parse->token_idx));
+	{
+		token = get_ptr_from_idx(tokens, parse->token_idx);
+		lookahead = classify_token(c, token);
+	}
 	index += lookahead;
 	if (index < 0 || index > YYLAST || get_yycheck(index) != lookahead)
 		return (reduce_or_error(c, parse, get_yydefact(parse->state)));
