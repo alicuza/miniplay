@@ -112,6 +112,24 @@ uint64_t	get_here_doc(t_ctx *c, t_lexer_state *lex, t_here_state *here)
 	}
 }
 
+static void	attach_here_body(t_ctx *c, t_parser_state *parse)
+{
+	t_symbol	*symbol;
+	t_node		*node;
+
+	if (!parse->here.body.len)
+		return ;
+	symbol = get_ptr_from_idx(&c->arena[AT_STACK], parse->stack_idx);
+	if (symbol->type != SYM_IO_HERE)
+	{
+		ft_putendl_fd("minishell: internal error: heredoc body without "
+			"matching io_here reduction", STDERR_FILENO);
+		return ;
+	}
+	node = get_ptr_from_idx(&c->arena[AT_COMMAND], symbol->node_idx);
+	node->data.redir.arena_offset = parse->here.body.pos;
+}
+
 bool	handle_here_body(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
 {
 	t_arena		*stack;
@@ -123,6 +141,7 @@ bool	handle_here_body(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
 		fprintf(stderr, "--- heredoc --- reading body until delimiter\n");
 #endif
 	get_here_doc(c, lex, &parse->here);
+	attach_here_body(c, parse);
 	parse->flags &= ~PARSE_HERE_BODY;
 	parse->flags |= PARSE_HAS_SAVED_TOKENS;
 	symbol = get_ptr_from_idx(stack, parse->stack_idx);
