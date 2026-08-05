@@ -46,11 +46,18 @@ static void	report_parse_error(t_ctx *c, t_parser_state *parse)
 	token = get_ptr_from_idx(&c->arena[AT_TOKENS], parse->token_idx);
 	body = get_ptr_from_offset(&c->arena[AT_STRING], token->offset);
 	if (parse->flags & PARSE_LOOKAHEAD_EOF)
-		printf("minishell: syntax error near unexpected token 'end of file'\n");
+		ft_putendl_fd("minishell: syntax error near unexpected token 'end of file'",
+			STDERR_FILENO);
 	else if (body[0] == '\n')
-		printf("minishell: syntax error near unexpected token 'newline'\n");
+		ft_putendl_fd("minishell: syntax error near unexpected token 'newline'",
+			STDERR_FILENO);
 	else
-		printf("minishell: syntax error near unexpected token '%s'\n", body);
+	{
+		ft_putstr_fd("minishell: syntax error near unexpected token '",
+			STDERR_FILENO);
+		ft_putstr_fd(body, STDERR_FILENO);
+		ft_putendl_fd("'", STDERR_FILENO);
+	}
 }
 
 static bool	get_lookahead(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
@@ -60,7 +67,7 @@ static bool	get_lookahead(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
 		if (parse->flags & PARSE_SAVE_TOKENS)
 		{
 #ifdef DEBUG
-			if (c->states & DBG_PARSER)
+			if (c->dbg.states & DBG_PARSER)
 				fprintf(stderr, "--- parse --- saved tokens exhausted -> HERE_BODY mode\n");
 #endif
 			parse->flags &= ~PARSE_SAVE_TOKENS;
@@ -79,7 +86,7 @@ static bool	handle_here_doc(t_ctx *c, t_parser_state *parse)
 	if (c->arena[AT_STRING].buf[cur->offset] == '\n')
 	{
 #ifdef DEBUG
-		if (c->states & DBG_PARSER)
+		if (c->dbg.states & DBG_PARSER)
 			fprintf(stderr, "--- parse --- newline seen -> HERE_BODY mode\n");
 #endif
 		parse->flags &= ~PARSE_SAVE_TOKENS;
@@ -113,7 +120,7 @@ static void	debug_parse_header(t_parser_state *parse)
 	uint32_t	bit;
 	uint8_t		flags;
 
-	fprintf(stderr, "\n--- parse ---  token_idx = %lu  flags =", parse->token_idx);
+	fprintf(stderr, "\n--- parse ---\ntoken_idx = %lu  flags =", parse->token_idx);
 	flags = parse->flags;
 	bit = 1;
 	while (bit && !(flags & bit))
@@ -142,12 +149,12 @@ static void	parse_exec(t_ctx *c, t_parser_state *parse)
 #ifndef DEBUG
 	exec_list(c, parse->exec_idx);
 #else
-	if (!c->no_exec)
+	if (!c->dbg.no_exec)
 		exec_list(c, parse->exec_idx);
 #endif
 	parse->exec_idx = 0;
 #ifdef DEBUG
-	if (c->no_exec)
+	if (c->dbg.no_exec)
 		return ;
 #endif
 	arena_clear(&c->arena[AT_COMMAND]);
@@ -160,7 +167,8 @@ static bool	run_parse_iteration(t_ctx *c, t_parser_state *parse, t_lexer_state *
 	t_lalr_action	action;
 
 #ifdef DEBUG
-	debug_parse_header(parse);
+	if (c->dbg.states & DBG_PARSER)
+		debug_parse_header(parse);
 #endif
 	if (!*have_lookahead && !get_lookahead(c, parse, lex))
 		return (false);
@@ -171,17 +179,17 @@ static bool	run_parse_iteration(t_ctx *c, t_parser_state *parse, t_lexer_state *
 		return (handle_here_doc(c, parse));
 	}
 #ifdef DEBUG
-	if (c->arenas & DBG_ARENA_STRING)
+	if (c->dbg.arenas & DBG_ARENA_STRING)
 		print_arena(&c->arena[AT_STRING]);
-	if (c->arenas & DBG_ARENA_TOKENS)
+	if (c->dbg.arenas & DBG_ARENA_TOKENS)
 		print_arena(&c->arena[AT_TOKENS]);
 #endif
 	action = shift_reduce(c, parse, lex);
 #ifdef DEBUG
-	if (c->scope & SCOPE_STACK)
-		print_stack(stdout, c, parse);
-	if (c->states & DBG_PARSER)
+	if (c->dbg.states & DBG_PARSER)
 	{
+		if (c->dbg.scope & SCOPE_STACK)
+			print_stack(stderr, c, parse);
 		if (action == LALR_REDUCE || action == LALR_ACCEPT)
 			print_nodes(stderr, c);
 	}

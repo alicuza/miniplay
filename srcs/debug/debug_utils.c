@@ -87,7 +87,7 @@ void	print_escaped_strn(FILE *out, const char *s, size_t n)
 	}
 }
 
-static void	parse_list(const char *spec, uint8_t *mask, const char **names,
+static void	parse_flag_list(const char *spec, uint8_t *mask, const char **names,
 		const uint8_t *bits, uint8_t all)
 {
 	uint64_t	len;
@@ -128,6 +128,10 @@ static void	parse_list(const char *spec, uint8_t *mask, const char **names,
 
 void	parse_debug_args(int argc, char **argv, t_ctx *c)
 {
+	static const char	*scope_names[] = {"tokens", "stack", "command",
+							"trace", NULL};
+	static const uint8_t	scope_bits[] = {SCOPE_TOKENS, SCOPE_STACK,
+							SCOPE_COMMAND, SCOPE_TRACE};
 	static const char	*state_names[] = {"lexer", "parser", "here", NULL};
 	static const uint8_t	state_bits[] = {DBG_LEXER, DBG_PARSER, DBG_HEREDOC};
 	static const char	*arena_names[] = {"prompt", "string", "tokens", "stack",
@@ -136,41 +140,41 @@ void	parse_debug_args(int argc, char **argv, t_ctx *c)
 							DBG_ARENA_TOKENS, DBG_ARENA_STACK, DBG_ARENA_COMMAND};
 	size_t	len;
 	int		i;
+	bool	states_seen;
+	bool	arenas_seen;
 
-	c->states = DBG_ALL_STATES;
-	c->arenas = DBG_ARENA_ALL;
+	states_seen = false;
+	arenas_seen = false;
 	i = 1;
 	while (i < argc)
 	{
 		len = ft_strlen(argv[i]);
 		if (!ft_strncmp(argv[i], "--no_exec", len))
-			c->no_exec = true;
-		else if (len > 8 && !ft_strncmp(argv[i], "--scope=", 8))
+			c->dbg.no_exec = true;
+		else if (len > 8 && (!ft_strncmp(argv[i], "--scope=", 8)
+				|| !ft_strncmp(argv[i], "--tests=", 8)))
 		{
-			if (ft_strnstr(argv[i], "tokens", len))
-				c->scope |= SCOPE_TOKENS;
-			else if (ft_strnstr(argv[i], "stack", len))
-				c->scope |= SCOPE_STACK;
-			else if (ft_strnstr(argv[i], "command", len))
-				c->scope |= SCOPE_COMMAND;
-			if (!c->scope)
-				fprintf(stderr, "--scope: '%s' matched no scope\n", argv[i] + 8);
-		}
-		else if (len > 8 && !ft_strncmp(argv[i], "--tests=", 8))
-		{
-			parse_list(argv[i] + 8, &c->scope,
-				(const char *[]){"tokens", "stack", "command", NULL},
-				(uint8_t[]){SCOPE_TOKENS, SCOPE_STACK, SCOPE_COMMAND},
-				SCOPE_TOKENS | SCOPE_STACK | SCOPE_COMMAND);
-			if (!c->scope)
-				fprintf(stderr, "--tests: '%s' matched no scope\n", argv[i] + 8);
+			parse_flag_list(argv[i] + 8, &c->dbg.scope, scope_names, scope_bits,
+				SCOPE_ALL);
+			if (!c->dbg.scope)
+				fprintf(stderr, "%s: matched no scope\n", argv[i]);
 		}
 		else if (len > 9 && !ft_strncmp(argv[i], "--states=", 9))
-			parse_list(argv[i] + 9, &c->states, state_names, state_bits,
+		{
+			states_seen = true;
+			parse_flag_list(argv[i] + 9, &c->dbg.states, state_names, state_bits,
 				DBG_ALL_STATES);
+		}
 		else if (len > 9 && !ft_strncmp(argv[i], "--arenas=", 9))
-			parse_list(argv[i] + 9, &c->arenas, arena_names, arena_bits,
+		{
+			arenas_seen = true;
+			parse_flag_list(argv[i] + 9, &c->dbg.arenas, arena_names, arena_bits,
 				DBG_ARENA_ALL);
-	++i;
+		}
+		++i;
 	}
+	if (!states_seen)
+		c->dbg.states = DBG_ALL_STATES;
+	if (!arenas_seen)
+		c->dbg.arenas = 0;
 }

@@ -4,8 +4,25 @@
 # Parser token tests
 # ------------------------------------------------------------------------------
 #
-# Each test sends a line of input through the `--no_exec --scope=tokens`
-# pipeline and compares the resulting token stream against the expected block.
+# Each test sends one input through the debug binary and compares what comes
+# back against an expected block.  A block is one or more sections, each
+# introduced by a header keyword naming what it pins:
+#
+#   TOKENS   the lexer's token stream (--scope=tokens)
+#   TRACE    every shift/reduce step — stack | lookahead | action — for the
+#            whole parse, including the EOF finalization steps after the last
+#            newline.  Pins parser-table behaviour that COMMAND cannot see,
+#            e.g. which lookahead forced which reduction.  (--scope=trace)
+#   COMMAND  the node tree the reductions built (--scope=command)
+#   ERROR    stderr lines that start with "minishell: "
+#   STATUS   the exit status
+#   STACK    the symbol stack at the end of parse_input(): symbols top-to-
+#            bottom, then the current lookahead and last parser action.
+#            (--scope=stack)
+#
+# Most tests only need TOKENS since the token stream alone pins the lexer.
+# Combine sections when the same input is worth checking from multiple angles —
+# see test_cmd_bare for TOKENS + TRACE + COMMAND on one input.
 #
 # Dimensions used in per-test annotations:
 #
@@ -49,6 +66,25 @@ test_cmd_bare()
 		TOKENS
 			TKN_WORD(ls)
 			TKN_OPERATOR(\n)
+		TRACE
+			[bottom] 1 SYM_LINEBREAK(epsilon) [top] | SYM_WORD(ls) | reduce 45 (SYM_LINEBREAK := (epsilon))
+			[bottom] 1 SYM_LINEBREAK(epsilon) [top] | SYM_WORD(ls) | shift -> state 7
+			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_CMD_NAME(ls) [top] | SYM_NEWLINE(\n) | reduce 24 (SYM_CMD_NAME := SYM_WORD)
+			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_SIMPLE_COMMAND(node 2) [top] | SYM_NEWLINE(\n) | reduce 23 (SYM_SIMPLE_COMMAND := SYM_CMD_NAME)
+			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_COMMAND(node 2) [top] | SYM_NEWLINE(\n) | reduce 11 (SYM_COMMAND := SYM_SIMPLE_COMMAND)
+			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_PIPELINE(node 3) [top] | SYM_NEWLINE(\n) | reduce 9 (SYM_PIPELINE := SYM_COMMAND)
+			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_LIST(node 3) [top] | SYM_NEWLINE(\n) | reduce 6 (SYM_LIST := SYM_PIPELINE)
+			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_COMPLETE_COMMANDS(node 3) [top] | SYM_NEWLINE(\n) | reduce 5 (SYM_COMPLETE_COMMANDS := SYM_LIST)
+			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_COMPLETE_COMMANDS(node 3) [top] | SYM_NEWLINE(\n) | shift -> state 1
+			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_COMPLETE_COMMANDS(node 3) 3 SYM_SEPARATOR(node 0) [top] | SYM_EOF | reduce 42 (SYM_SEPARATOR := SYM_NEWLINE)
+			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_COMPLETE_COMMANDS(node 3) 3 SYM_LINEBREAK(node 0) [top] | SYM_EOF | reduce 44 (SYM_LINEBREAK := SYM_SEPARATOR)
+			[bottom] 1 SYM_PROGRAM(node 3) [top] | SYM_EOF | reduce 2 (SYM_PROGRAM := SYM_LINEBREAK SYM_COMPLETE_COMMANDS SYM_LINEBREAK)
+			[bottom] 1 SYM_PROGRAM(node 3) [top] | SYM_EOF | shift -> state 5
+			[bottom] 1 SYM_PROGRAM(node 3) [top] | SYM_EOF | accept
+		COMMAND
+			[id 1] NODE_ARG(ls) [next 0]
+			[id 2] NODE_COMMAND [next 0] [arg_head 1] [redir_head 0]
+			[id 3] NODE_PIPELINE [next 0] [command_head 2]
 		eof
 	)"
 	assert_shell "$input" "$expected"
@@ -366,6 +402,112 @@ test_op_mixed()
 			TKN_WORD(wc)
 			TKN_OPERATOR(&&)
 			TKN_WORD(env)
+			TKN_OPERATOR(\n)
+		eof
+	)"
+	assert_shell "$input" "$expected"
+}
+
+# Operators delimit a word on their own, so dropping the blanks around them
+# must not change the token stream.
+# CMD={bare, bare}  ARGC={1, 1}  REDIR={}  EXPAND={}  QUOTES={}  OP={and_if|adjacent}
+test_op_and_adjacent()
+{
+	local input expected
+	input="$(cat <<- \eof
+		a&&b
+		eof
+	)"
+	expected="$(cat <<- \eof
+		TOKENS
+			TKN_WORD(a)
+			TKN_OPERATOR(&&)
+			TKN_WORD(b)
+			TKN_OPERATOR(\n)
+		eof
+	)"
+	assert_shell "$input" "$expected"
+}
+
+# CMD={bare, bare}  ARGC={1, 1}  REDIR={}  EXPAND={}  QUOTES={}  OP={pipe|adjacent}
+test_op_pipe_adjacent()
+{
+	local input expected
+	input="$(cat <<- \eof
+		a|b
+		eof
+	)"
+	expected="$(cat <<- \eof
+		TOKENS
+			TKN_WORD(a)
+			TKN_OPERATOR(|)
+			TKN_WORD(b)
+			TKN_OPERATOR(\n)
+		eof
+	)"
+	assert_shell "$input" "$expected"
+}
+
+# ----- Grouping ---------------------------------------------------------------
+
+# CMD={bare}  ARGC={1}  REDIR={}  EXPAND={}  QUOTES={}  OP={}  GROUP={paren|spaced}
+test_group_paren()
+{
+	local input expected
+	input="$(cat <<- \eof
+		( ls )
+		eof
+	)"
+	expected="$(cat <<- \eof
+		TOKENS
+			TKN_OPERATOR(()
+			TKN_WORD(ls)
+			TKN_OPERATOR())
+			TKN_OPERATOR(\n)
+		eof
+	)"
+	assert_shell "$input" "$expected"
+}
+
+# Parentheses are operators, so they delimit the word next to them without
+# needing a blank - `(ls)` must not lex as one word.
+# CMD={bare}  ARGC={1}  REDIR={}  EXPAND={}  QUOTES={}  OP={}  GROUP={paren|adjacent}
+test_group_paren_adjacent()
+{
+	local input expected
+	input="$(cat <<- \eof
+		(ls)
+		eof
+	)"
+	expected="$(cat <<- \eof
+		TOKENS
+			TKN_OPERATOR(()
+			TKN_WORD(ls)
+			TKN_OPERATOR())
+			TKN_OPERATOR(\n)
+		eof
+	)"
+	assert_shell "$input" "$expected"
+}
+
+# CMD={bare, bare, bare}  ARGC={1, 1, 1}  REDIR={}  EXPAND={}  QUOTES={}
+# OP={and_if, pipe}  GROUP={paren|spaced}
+test_group_paren_pipeline()
+{
+	local input expected
+	input="$(cat <<- \eof
+		( ls && wc ) | cat
+		eof
+	)"
+	expected="$(cat <<- \eof
+		TOKENS
+			TKN_OPERATOR(()
+			TKN_WORD(ls)
+			TKN_OPERATOR(&&)
+			TKN_WORD(wc)
+			TKN_OPERATOR())
+			TKN_OPERATOR(|)
+			TKN_WORD(cat)
 			TKN_OPERATOR(\n)
 		eof
 	)"

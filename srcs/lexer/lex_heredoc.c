@@ -46,7 +46,6 @@ uint64_t	delimit_lex_here(t_ctx *c, t_here_state *here)
 	return (idx);
 }
 
-// TODO: the t_slice here is created during reduction of io_here, not done yet
 bool	is_delim_line(t_ctx *c, t_lexer_state *lex, t_here_state *here)
 {
 	t_arena		*strings;
@@ -72,6 +71,18 @@ void	append_to_here_body(t_ctx *c, t_lexer_state *lex, t_here_state *here, uint6
 	consume_char(lex, len + 1);
 }
 
+static void	warn_here_eof(t_ctx *c, t_here_state *here)
+{
+	char	*delim;
+
+	ft_putstr_fd("minishell: warning: here-document delimited by "
+		"end-of-file (wanted `", STDERR_FILENO);
+	delim = get_ptr_from_offset(&c->arena[AT_STRING], here->delim.pos);
+	if (write(STDERR_FILENO, delim, here->delim.len) == -1)
+		return ;
+	ft_putendl_fd("')", STDERR_FILENO);
+}
+
 uint64_t	get_here_doc(t_ctx *c, t_lexer_state *lex, t_here_state *here)
 {
 	uint64_t	len;
@@ -83,7 +94,7 @@ uint64_t	get_here_doc(t_ctx *c, t_lexer_state *lex, t_here_state *here)
 			get_user_input(c, INPUT_CONTINUATION);
 			if (!c->read_line)
 			{
-				printf("minishell: warning: here-document delimited by end-of-file\n"); // TODO: proper error handling here.
+				warn_here_eof(c, here);
 				here->body.pos = 0;
 				here->body.len = 0;
 				return (delimit_lex_here(c, here));
@@ -108,7 +119,7 @@ bool	handle_here_body(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
 
 	stack = &c->arena[AT_STACK];
 #ifdef DEBUG
-	if (c->states & DBG_HEREDOC)
+	if (c->dbg.states & DBG_HEREDOC)
 		fprintf(stderr, "--- heredoc --- reading body until delimiter\n");
 #endif
 	get_here_doc(c, lex, &parse->here);
@@ -127,11 +138,11 @@ bool	handle_saved_tokens(t_ctx *c, t_parser_state *parse)
 	tokens = &c->arena[AT_TOKENS];
 	next = get_ptr_from_idx(tokens, parse->token_idx + 1);
 #ifdef DEBUG
-	if (c->states & DBG_HEREDOC)
+	if (c->dbg.states & DBG_HEREDOC)
 		fprintf(stderr, "--- heredoc --- replaying saved token %lu\n",
 			parse->token_idx + 1);
 #endif
-	if (next->flags & TKN_IS_HERE_BODY) // TODO: figure out if this is the correct place to write the heredoc to a tmp file
+	if (next->flags & TKN_IS_HERE_BODY)
 	{
 		parse->flags &= ~PARSE_HAS_SAVED_TOKENS;
 		++parse->token_idx;

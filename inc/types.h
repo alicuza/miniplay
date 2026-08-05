@@ -36,6 +36,19 @@ typedef enum e_arena_type
 	AT_COUNT,
 }	t_arena_type;
 
+# ifdef DEBUG
+typedef struct s_debug
+{
+	uint8_t	scope;				/* SCOPE_TOKENS | SCOPE_STACK | SCOPE_COMMAND */
+	uint8_t	states;				/* DBG_LEXER | DBG_PARSER | DBG_HEREDOC */
+	uint8_t	arenas;				/* DBG_ARENA_* mask */
+	bool	no_exec;
+	bool	awaiting;			/* true while main.c awaits the next lookahead */
+	char	last_action[64];	/* written by print_trace_step; read by print_stack
+							   TODO: move to a debug arena for unbounded length */
+}	t_debug;
+# endif
+
 typedef struct s_ctx
 {
 	t_env	env;
@@ -44,10 +57,7 @@ typedef struct s_ctx
 	int		return_status;
 	bool	is_interactive;
 # ifdef DEBUG
-	uint8_t	scope;		/* SCOPE_TOKENS | SCOPE_STACK | SCOPE_COMMAND */
-	uint8_t	states;		/* DBG_LEXER | DBG_PARSER | DBG_HEREDOC */
-	uint8_t	arenas;		/* DBG_ARENA_* mask */
-	bool	no_exec;	/* TODO: do i actually need this? */
+	t_debug	dbg;
 # endif
 }	t_ctx;
 

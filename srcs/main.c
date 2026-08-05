@@ -76,12 +76,12 @@ int	main(int argc, char **argv, char **envp)
 			continue ;
 		}
 #ifdef DEBUG
-		if (c.states & DBG_PARSER)
+		if (c.dbg.states & DBG_PARSER)
 		{
 			fprintf(stderr, "\n--- read_line ---\n");
 			fprintf(stderr, "%s\n", c.read_line);
 		}
-		if (c.arenas & DBG_ARENA_PROMPT)
+		if (c.dbg.arenas & DBG_ARENA_PROMPT)
 		{
 			fprintf(stderr, "\n--- prompt arena after get_prompt ---\n");
 			print_arena(&c.arena[AT_PROMPT]);
@@ -94,22 +94,28 @@ int	main(int argc, char **argv, char **envp)
 			reset_parser(&c, &parse);
 		}
 #ifdef DEBUG
-		if (c.scope & SCOPE_TOKENS)
+		if (c.dbg.scope & SCOPE_TOKENS)
 			print_tokens(stdout, &c);
-		else
+		if (c.dbg.arenas & DBG_ARENA_TOKENS)
 			print_arena(&c.arena[AT_TOKENS]);
-		if (c.scope & SCOPE_STACK)
+		if (c.dbg.scope & SCOPE_STACK)
+		{
+			c.dbg.awaiting = true;
 			print_stack(stdout, &c, &parse);
-		else
+			c.dbg.awaiting = false;
+		}
+		if (c.dbg.arenas & DBG_ARENA_STACK)
 			print_arena(&c.arena[AT_STACK]);
-		if (c.scope & SCOPE_COMMAND)
+		if (c.dbg.scope & SCOPE_COMMAND)
 			print_nodes(stdout, &c);
-		else
+		if (c.dbg.arenas & DBG_ARENA_COMMAND)
 			print_arena(&c.arena[AT_COMMAND]);
 #endif
 		free(c.read_line);
 	}
 	finalize_parse(&c, &parse);
+	if (parse.flags & PARSE_ERROR)
+		c.return_status = 2;
 	cleanup(&c);
 	return (c.return_status);
 }

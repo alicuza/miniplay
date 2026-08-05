@@ -33,6 +33,8 @@ void		print_symbol(FILE *out, t_ctx *c, t_symbol *symbol, uint64_t idx);
 void		print_stack(FILE *out, t_ctx *c, t_parser_state *parse);
 void		print_parse_table(FILE *out, t_ctx *c, t_parser_state *parse,
 				const char *action);
+void		print_trace_line(FILE *out, t_ctx *c, t_parser_state *parse,
+				const char *action);
 size_t		escape_into_buf(char *dst, size_t size, const char *src,
 				size_t len);
 void		print_tokens(FILE *out, t_ctx *c);

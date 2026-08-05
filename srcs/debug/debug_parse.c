@@ -65,14 +65,18 @@ void	print_symbol(FILE *out, t_ctx *c, t_symbol *symbol, uint64_t idx)
 	fprintf(out, " }\n");
 }
 
+static void	build_lookahead_desc(t_ctx *c, t_parser_state *parse, char *buf,
+		size_t size);
+
 void	print_stack(FILE *out, t_ctx *c, t_parser_state *parse)
 {
 	uint64_t	phys;
 	t_symbol	*symbol;
 	t_arena		*stack;
+	char		lookahead[96];
 
 	stack = &c->arena[AT_STACK];
-	fprintf(out, "\n--- stack ---  (state %d)\n", parse->state);
+	fprintf(out, "\n--- stack ---\n(state %d)\n", parse->state);
 	fprintf(out, "--- top -----\n");
 	phys = parse->stack_idx;
 	while (phys)
@@ -82,6 +86,16 @@ void	print_stack(FILE *out, t_ctx *c, t_parser_state *parse)
 		--phys;
 	}
 	fprintf(out, "--- bottom ----\n");
+	if (c->dbg.awaiting)
+		fprintf(out, "lookahead: " DBG_LOOKAHEAD_PENDING "\n");
+	else if (parse->flags & PARSE_LOOKAHEAD_EOF)
+		fprintf(out, "lookahead: " DBG_LOOKAHEAD_EOF "\n");
+	else
+	{
+		build_lookahead_desc(c, parse, lookahead, sizeof(lookahead));
+		fprintf(out, "lookahead: %s\n", lookahead);
+	}
+	fprintf(out, "action: %s\n", c->dbg.last_action);
 }
 
 static void	build_stack_desc(t_ctx *c, t_parser_state *parse, char *buf,
@@ -113,7 +127,7 @@ static void	build_lookahead_desc(t_ctx *c, t_parser_state *parse, char *buf,
 
 	if (parse->flags & PARSE_LOOKAHEAD_EOF)
 	{
-		ft_strlcpy(buf, "SYM_EOF", size);
+		ft_strlcpy(buf, DBG_LOOKAHEAD_EOF, size);
 		return ;
 	}
 	token = get_ptr_from_idx(&c->arena[AT_TOKENS], parse->token_idx);
@@ -137,6 +151,18 @@ void	print_parse_table(FILE *out, t_ctx *c, t_parser_state *parse,
 	build_lookahead_desc(c, parse, lookahead, sizeof(lookahead));
 	fprintf(out, "[bottom] %-*s [top] | %-*s | %s\n", STACK_COL_WIDTH,
 		stack_desc, LOOKAHEAD_COL_WIDTH, lookahead, action);
+}
+
+void	print_trace_line(FILE *out, t_ctx *c, t_parser_state *parse,
+		const char *action)
+{
+	char	stack_desc[4096];
+	char	lookahead[96];
+
+	build_stack_desc(c, parse, stack_desc, sizeof(stack_desc));
+	build_lookahead_desc(c, parse, lookahead, sizeof(lookahead));
+	fprintf(out, "[bottom] %s[top] | %s | %s\n",
+		stack_desc, lookahead, action);
 }
 
 void	print_tokens(FILE *out, t_ctx *c)

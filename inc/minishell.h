@@ -84,9 +84,9 @@
 # define PARSE_DONE				0x01
 # define PARSE_SAVE_TOKENS		0x02
 # define PARSE_HAS_SAVED_TOKENS	0x04
-# define PARSE_HERE_BODY		0x10
-# define PARSE_ERROR			0x20
-# define PARSE_LOOKAHEAD_EOF	0x40
+# define PARSE_HERE_BODY		0x08
+# define PARSE_ERROR			0x10
+# define PARSE_LOOKAHEAD_EOF	0x20
 
 /* -------- node flags ------------------------------------------------------ */
 # define FLAG_AND_IF 0x01
@@ -103,6 +103,8 @@
 #  define SCOPE_TOKENS 0x01
 #  define SCOPE_STACK 0x02
 #  define SCOPE_COMMAND 0x04
+#  define SCOPE_TRACE 0x08
+#  define SCOPE_ALL 0x0f
 
 /* -------- debug state flags (--states=) ----------------------------------- */
 #  define DBG_LEXER 0x01
@@ -117,6 +119,10 @@
 #  define DBG_ARENA_STACK 0x08
 #  define DBG_ARENA_COMMAND 0x10
 #  define DBG_ARENA_ALL 0x1f
+
+/* -------- lookahead sentinel labels --------------------------------------- */
+#  define DBG_LOOKAHEAD_PENDING "(pending)"
+#  define DBG_LOOKAHEAD_EOF "SYM_EOF"
 #endif
 
 /* -------- grammar constants ----------------------------------------------- */

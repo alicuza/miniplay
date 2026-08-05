@@ -15,7 +15,7 @@
 bool	apply_rule_1(t_ctx *c, t_lexer_state *lex)
 {
 #ifdef DEBUG
-	if (c->states & DBG_LEXER)
+	if (c->dbg.states & DBG_LEXER)
 		fprintf(stderr, "rule 1\n");
 #endif
 	lex->flags |= LEX_AT_EOI;
@@ -30,7 +30,7 @@ bool	apply_rule_1(t_ctx *c, t_lexer_state *lex)
 bool	apply_rule_2(t_ctx *c, t_lexer_state *lex)
 {
 #ifdef DEBUG
-	if (c->states & DBG_LEXER)
+	if (c->dbg.states & DBG_LEXER)
 		fprintf(stderr, "rule 2\n");
 #endif
 	if(lex->flags & LEX_IS_BUILDING)
@@ -46,7 +46,7 @@ bool	apply_rule_2(t_ctx *c, t_lexer_state *lex)
 bool	apply_rule_3(t_ctx *c, t_lexer_state *lex)
 {
 #ifdef DEBUG
-	if (c->states & DBG_LEXER)
+	if (c->dbg.states & DBG_LEXER)
 		fprintf(stderr, "rule 3\n");
 #endif
 	delimit_lex_token(c, lex);
@@ -56,7 +56,7 @@ bool	apply_rule_3(t_ctx *c, t_lexer_state *lex)
 bool	apply_rule_4(t_ctx *c, t_lexer_state *lex)
 {
 #ifdef DEBUG
-	if (c->states & DBG_LEXER)
+	if (c->dbg.states & DBG_LEXER)
 		fprintf(stderr, "rule 4\n");
 #endif
 	if (lex->flags & LEX_IS_BUILDING)
@@ -78,7 +78,7 @@ bool	apply_rule_5(t_ctx *c, t_lexer_state *lex)
 {
 	uint64_t	len;
 #ifdef DEBUG
-	if (c->states & DBG_LEXER)
+	if (c->dbg.states & DBG_LEXER)
 		fprintf(stderr, "rule 5\n");
 #endif
 	len = get_expansion_len(c->read_line + lex->char_idx);
@@ -97,7 +97,7 @@ bool	apply_rule_5(t_ctx *c, t_lexer_state *lex)
 bool	apply_rule_6(t_ctx *c, t_lexer_state *lex)
 {
 #ifdef DEBUG
-	if (c->states & DBG_LEXER)
+	if (c->dbg.states & DBG_LEXER)
 		fprintf(stderr, "rule 6\n");
 #endif
 	if (lex->flags & LEX_IS_BUILDING)
@@ -113,7 +113,7 @@ bool	apply_rule_6(t_ctx *c, t_lexer_state *lex)
 bool	apply_rule_7(t_ctx *c, t_lexer_state *lex)
 {
 #ifdef DEBUG
-	if (c->states & DBG_LEXER)
+	if (c->dbg.states & DBG_LEXER)
 		fprintf(stderr, "rule 7\n");
 #endif
 	consume_char(lex, 1);
@@ -128,7 +128,7 @@ bool	apply_rule_7(t_ctx *c, t_lexer_state *lex)
 bool	apply_rule_8(t_ctx *c, t_lexer_state *lex)
 {
 #ifdef DEBUG
-	if (c->states & DBG_LEXER)
+	if (c->dbg.states & DBG_LEXER)
 		fprintf(stderr, "rule 8\n");
 #else
 	(void)c;
@@ -141,7 +141,7 @@ bool	apply_rule_8(t_ctx *c, t_lexer_state *lex)
 bool	apply_rule_9(t_ctx *c, t_lexer_state *lex)
 {
 #ifdef DEBUG
-	if (c->states & DBG_LEXER)
+	if (c->dbg.states & DBG_LEXER)
 		fprintf(stderr, "rule 9\n");
 #endif
 	while (c->read_line[lex->char_idx] && c->read_line[lex->char_idx] != '\n')
@@ -152,7 +152,7 @@ bool	apply_rule_9(t_ctx *c, t_lexer_state *lex)
 bool	apply_rule_10(t_ctx *c, t_lexer_state *lex)
 {
 #ifdef DEBUG
-	if (c->states & DBG_LEXER)
+	if (c->dbg.states & DBG_LEXER)
 		fprintf(stderr, "rule 10\n");
 #else
 	(void)c;
@@ -165,7 +165,7 @@ bool	apply_rule_10(t_ctx *c, t_lexer_state *lex)
 bool	lex_token(t_ctx *c, t_lexer_state *lex)
 {
 #ifdef DEBUG
-	if (c->states & DBG_LEXER)
+	if (c->dbg.states & DBG_LEXER)
 		print_lex_state(c, lex);
 #endif
 	if (!c->read_line[lex->char_idx])										// rule 1

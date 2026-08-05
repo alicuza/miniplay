@@ -203,6 +203,8 @@ static uint64_t	reduce_filename(t_ctx *c, t_parser_state *parse, t_rule *rule);
 static uint64_t	reduce_io_here(t_ctx *c, t_parser_state *parse, t_rule *rule);
 static uint64_t	reduce_command_redirects(t_ctx *c, t_parser_state *parse,
 		t_rule *rule);
+static uint64_t	reduce_compound_list(t_ctx *c, t_parser_state *parse,
+		t_rule *rule);
 static uint64_t	reduce_subshell(t_ctx *c, t_parser_state *parse, t_rule *rule);
 static uint64_t	reduce_term_append(t_ctx *c, t_parser_state *parse, t_rule *rule);
 
@@ -224,14 +226,14 @@ static t_rule	rule_dispatch_first(int32_t action)
 	rule[12] = (t_rule){NULL, 1, SYM_COMMAND};
 	rule[13] = (t_rule){reduce_command_redirects, 2, SYM_COMMAND};
 	rule[14] = (t_rule){reduce_subshell, 3, SYM_SUBSHELL};
-	rule[15] = (t_rule){NULL, 2, SYM_COMPOUND_LIST};
+	rule[15] = (t_rule){reduce_compound_list, 2, SYM_COMPOUND_LIST};
 	return (rule[action]);
 }
 
 static t_rule	rule_dispatch_second(int32_t action)
 {
 	t_rule	rule[16];
-	rule[0] = (t_rule){NULL, 3, SYM_COMPOUND_LIST};
+	rule[0] = (t_rule){reduce_compound_list, 3, SYM_COMPOUND_LIST};
 	rule[1] = (t_rule){reduce_term_append, 3, SYM_TERM};
 	rule[2] = (t_rule){NULL, 1, SYM_TERM};
 	rule[3] = (t_rule){reduce_simple_command, 3, SYM_SIMPLE_COMMAND};
@@ -567,7 +569,7 @@ static uint64_t	reduce_io_here(t_ctx *c, t_parser_state *parse, t_rule *rule)
 	parse->here.body.pos = 0;
 	parse->here.body.len = 0;
 #ifdef DEBUG
-	if (c->states & DBG_PARSER)
+	if (c->dbg.states & DBG_PARSER)
 		fprintf(stderr, "--- parse --- heredoc: entering SAVE_TOKENS mode\n");
 #endif
 	parse->flags |= PARSE_SAVE_TOKENS;
@@ -585,6 +587,12 @@ static uint64_t	reduce_command_redirects(t_ctx *c, t_parser_state *parse,
 	node = node_at(c, stack_at(c, parse, rule, 0)->node_idx);
 	node->data.command.redir_head_idx = stack_at(c, parse, rule, 1)->node_idx;
 	return (stack_at(c, parse, rule, 0)->node_idx);
+}
+
+static uint64_t	reduce_compound_list(t_ctx *c, t_parser_state *parse,
+		t_rule *rule)
+{
+	return (stack_at(c, parse, rule, 1)->node_idx);
 }
 
 static uint64_t	reduce_subshell(t_ctx *c, t_parser_state *parse, t_rule *rule)
@@ -650,6 +658,16 @@ static void	build_rule_desc(char *buf, size_t size, int32_t action,
 	}
 	snprintf(buf + pos, size - pos, ")");
 }
+
+static void	print_trace_step(t_ctx *c, t_parser_state *parse,
+		const char *label)
+{
+	ft_strlcpy(c->dbg.last_action, label, sizeof(c->dbg.last_action));
+	if (c->dbg.states & DBG_PARSER)
+		print_parse_table(stderr, c, parse, label);
+	if (c->dbg.scope & SCOPE_TRACE)
+		print_trace_line(stdout, c, parse, label);
+}
 #endif
 
 static t_lalr_action	reduce(t_ctx *c, t_parser_state *parse, int32_t action)
@@ -668,15 +686,13 @@ static t_lalr_action	reduce(t_ctx *c, t_parser_state *parse, int32_t action)
 	if (action == 1)						/* $accept: program $end */
 	{
 #ifdef DEBUG
-		if (c->states & DBG_PARSER)
-			print_parse_table(stderr, c, parse, "accept");
+		print_trace_step(c, parse, "accept");
 #endif
 		return (LALR_ACCEPT);
 	}
 	rule = get_rule(action);
 #ifdef DEBUG
-	if (c->states & DBG_PARSER)
-		build_rule_desc(rule_desc, sizeof(rule_desc), action, c, &rule, parse);
+	build_rule_desc(rule_desc, sizeof(rule_desc), action, c, &rule, parse);
 #endif
 	if (rule.rhs_len)
 	{
@@ -686,7 +702,7 @@ static t_lalr_action	reduce(t_ctx *c, t_parser_state *parse, int32_t action)
 			node_idx = stack_at(c, parse, &rule, 0)->node_idx;
 		token_idx = stack_at(c, parse, &rule, rule.rhs_len - 1)->token_idx;
 #ifdef DEBUG
-		if (c->states & DBG_PARSER)
+		if (c->dbg.states & DBG_PARSER)
 		{
 			rhs = 0;
 			while (rhs < rule.rhs_len)
@@ -717,7 +733,7 @@ static t_lalr_action	reduce(t_ctx *c, t_parser_state *parse, int32_t action)
 	else
 		parse->state = get_yydefgoto(lhs);
 #ifdef DEBUG
-	if (c->states & DBG_PARSER)
+	if (c->dbg.states & DBG_PARSER)
 	{
 		if (node_idx)
 			print_node_line(stderr, c, node_at(c, node_idx), node_idx);
@@ -725,14 +741,12 @@ static t_lalr_action	reduce(t_ctx *c, t_parser_state *parse, int32_t action)
 #endif
 	push_nonterm(c, parse, rule.lhs_type, node_idx, token_idx);
 #ifdef DEBUG
-	if (c->states & DBG_PARSER)
-		print_parse_table(stderr, c, parse, rule_desc);
+	print_trace_step(c, parse, rule_desc);
 #endif
 	if (parse->state == YYFINAL)
 	{
 #ifdef DEBUG
-		if (c->states & DBG_PARSER)
-			print_parse_table(stderr, c, parse, "accept");
+		print_trace_step(c, parse, "accept");
 #endif
 		return (LALR_ACCEPT);
 	}
@@ -743,22 +757,24 @@ static t_lalr_action	shift(t_ctx *c, t_parser_state *parse, int32_t action)
 {
 #ifdef DEBUG
 	char	action_desc[64];
+	char	*num;
 #endif
 
 	parse->state = action;
 #ifdef DEBUG
-	if (c->states & DBG_PARSER)
+	ft_strlcpy(action_desc, "shift -> state ", sizeof(action_desc));
+	num = ft_itoa(parse->state); /* TODO: avoid malloc in debug path (valgrind noise) */
+	if (num)
 	{
-		snprintf(action_desc, sizeof(action_desc), "shift -> state %d",
-			parse->state);
-		print_parse_table(stderr, c, parse, action_desc);
+		ft_strlcat(action_desc, num, sizeof(action_desc));
+		free(num);
 	}
+	print_trace_step(c, parse, action_desc);
 #endif
 	if (parse->state == YYFINAL)
 	{
 #ifdef DEBUG
-		if (c->states & DBG_PARSER)
-			print_parse_table(stderr, c, parse, "accept");
+		print_trace_step(c, parse, "accept");
 #endif
 		return (LALR_ACCEPT);
 	}
