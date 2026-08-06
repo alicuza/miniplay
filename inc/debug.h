@@ -16,19 +16,29 @@
 # include "arena.h"
 # include "types.h"
 
+/* -------- debug_arena.c -------------------------------------------------- */
 const char	*get_arena_name(t_arena *arena);
-const char	*get_flag_name(uint32_t bit);
-const char	*get_symbol_type_name(t_symbol_type type);
-const char	*get_token_type_name(t_token_type type);
-void		parse_debug_args(int argc, char **argv, t_ctx *c);
-void		poison_stride(t_arena *arena);
 void		print_arena(t_arena *arena);
+void		poison_stride(t_arena *arena);
+
+/* -------- debug_lex.c ---------------------------------------------------- */
 void		print_flags(FILE *out, uint32_t flags);
-void		print_token(FILE *out, t_ctx *c, t_token *token);
-void		print_symbol(t_ctx *c, t_symbol *symbol, uint64_t phys);
 void		print_lex_state(t_ctx *c, t_lexer_state *l);
+void		print_token(FILE *out, t_ctx *c, t_token *token);
+
+/* -------- debug_names.c -------------------------------------------------- */
+const char	*get_token_type_name(t_token_type type);
+const char	*get_symbol_type_name(t_symbol_type type);
+const char	*get_lex_flag_name(uint32_t bit);
+const char	*get_parse_flag_name(uint32_t bit);
+
+/* -------- debug_parse.c -------------------------------------------------- */
+void		print_symbol(t_ctx *c, t_symbol *symbol, uint64_t phys);
 void		print_complete_stack(t_ctx *c, t_parser_state *parse);
+
+/* -------- debug_utils.c -------------------------------------------------- */
 void		print_char_info(unsigned char ch);
 void		print_escaped_str(FILE *out, const char *str);
+void		parse_debug_args(int argc, char **argv, t_ctx *c);
 
 #endif

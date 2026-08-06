@@ -1,13 +1,11 @@
 %{
-/* Grammar specification for minishell LALR analysis.
+/* Grammar specification for minishell's LALR(1) parser.
  * Based on POSIX.1-2024 §2.10.2, trimmed to mandatory feature set.
  */
 %}
 
 
 %token WORD NEWLINE PIPE LESS GREAT DLESS DGREAT AND_IF OR_IF OPAR CPAR
-
-%verbose
 
 %start program
 
@@ -19,14 +17,14 @@ program
 	;
 
 complete_commands
-	: complete_commands separator list
-	| list
+	: complete_commands newline_list and_or
+	| and_or
 	;
 
-list
+and_or
 	: pipeline
-	| list AND_IF linebreak pipeline
-	| list OR_IF  linebreak pipeline
+	| and_or AND_IF linebreak pipeline
+	| and_or OR_IF  linebreak pipeline
 	;
 
 pipeline
@@ -46,12 +44,12 @@ subshell
 
 compound_list
 	: linebreak term
-	| linebreak term separator
+	| linebreak term newline_list
 	;
 
 term
-	: term separator list
-	| list
+	: term newline_list and_or
+	| and_or
 	;
 
 simple_command
@@ -110,13 +108,13 @@ here_end
 	: WORD
 	;
 
-separator
+newline_list
 	: NEWLINE
-	| separator NEWLINE
+	| newline_list NEWLINE
 	;
 
 linebreak
-	: separator
+	: newline_list
 	| /* empty */
 	;
 

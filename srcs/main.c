@@ -85,7 +85,12 @@ int	main(int argc, char **argv, char **envp)
 		print_complete_stack(&c, &parse);
 		if (!c.no_exec)
 #endif
-			exec_stack(&c, &parse);
+		{
+			if (!(parse.flags & PARSE_ERROR))
+				exec_stack(&c, &parse);
+			else
+				c.return_status = 2;
+		}
 		clear_arenas(&c);
 		free(c.read_line);
 	}

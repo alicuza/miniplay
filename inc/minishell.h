@@ -81,33 +81,36 @@
 # define LEX_AT_EOI				0x10
 
 /* -------- parser flags ---------------------------------------------------- */
-# define PARSE_DONE				0x01
-# define PARSE_SAVE_TOKENS		0x02
+# define PARSE_SAVE_TOKENS		0x01
+# define PARSE_HERE_BODY		0x02
 # define PARSE_HAS_SAVED_TOKENS	0x04
-# define PARSE_HERE_PENDING		0x08
-# define PARSE_HERE_BODY		0x10
+# define PARSE_HAS_LOOKAHEAD	0x08
+# define PARSE_LOOKAHEAD_IS_EOF	0x10
+# define PARSE_DONE				0x20
+# define PARSE_ERROR			0x40
 
 /* -------- node flags ------------------------------------------------------ */
-# define FLAG_AND_IF 0x01
-# define FLAG_OR_IF 0x02
-# define FLAG_SUBSHELL 0x04
-# define REDIR_IN 0x08
-# define REDIR_OUT 0x10
-# define REDIR_HERE 0x20
-# define REDIR_APPEND 0x40
+# define FLAG_AND_IF			0x01
+# define FLAG_OR_IF				0x02
+# define FLAG_SUBSHELL			0x04
+# define REDIR_IN				0x08
+# define REDIR_OUT				0x10
+# define REDIR_HERE				0x20
+# define REDIR_APPEND			0x40
+# define REDIR_HAS_QUOTES		0x80
 
 # ifdef DEBUG
 /* -------- test scope flags ------------------------------------------------ */
-#  define SCOPE_TOKENS 0x01
-#  define SCOPE_SYMBOLS 0x02
-#  define SCOPE_STACK 0x04
-#  define SCOPE_COMMAND 0x08
+#  define SCOPE_TOKENS			0x01
+#  define SCOPE_SYMBOLS			0x02
+#  define SCOPE_STACK			0x04
+#  define SCOPE_COMMAND			0x08
 # endif
 
 /* -------- grammar constants ----------------------------------------------- */
 # define NO_TOKEN 0
 # define MAX_RHS_LEN 4
-# define RULE_COUNT 48
+# define RULE_COUNT 46
 
 /* -------- prompt.c -------------------------------------------------------- */
 char			*get_prompt(t_ctx *c, bool with_cwd);
@@ -116,7 +119,7 @@ char			*get_prompt(t_ctx *c, bool with_cwd);
 char			*get_user_input(t_ctx *c, bool is_continuation);
 
 /* -------- lookahead.c ----------------------------------------------------- */
-bool			get_next_token(t_ctx *c, t_parser_state *p, t_lexer_state *l, t_here_state *h);
+bool			get_next_token(t_ctx *c, t_parser_state *p, t_lexer_state *l);
 bool			lex_token(t_ctx *c, t_lexer_state *lex);
 
 /* -------- pair_utils.c ---------------------------------------------------- */
@@ -136,10 +139,10 @@ void			delimit_lex_token(t_ctx *c, t_lexer_state *lex);
 uint64_t		grow_lex_token(t_lexer_state *lex, uint64_t len);
 
 /* -------- lex_heredoc.c --------------------------------------------------- */
-bool			get_here_doc(t_ctx *c, t_lexer_state *l, t_here_state *h);
+uint64_t		get_here_doc(t_ctx *c, t_lexer_state *l, t_here_state *h);
 bool			is_delim_line(t_ctx *c, t_lexer_state *l, t_here_state *);
-void			delimit_lex_here(t_ctx *c, t_here_state *h);
-bool			handle_here_body(t_ctx *c, t_parser_state *p, t_lexer_state *l, t_here_state *h);
+uint64_t		delimit_lex_here(t_ctx *c, t_here_state *h);
+bool			handle_here_body(t_ctx *c, t_parser_state *p, t_lexer_state *l);
 bool			handle_saved_tokens(t_ctx *c, t_parser_state *parse);
 
 /* -------- lex_utils.c ----------------------------------------------------- */
@@ -148,7 +151,7 @@ t_slice			save_lex_token_slice(t_lexer_state *lex);
 void			restore_lex_token_slice(t_lexer_state *lex, t_slice len);
 
 /* -------- shift_reduce.c ----------------------------------------------------- */
-void	shift_reduce(t_ctx *c, t_parser_state *parse, t_lexer_state *lex, t_here_state *here);
+t_lalr_action	shift_reduce(t_ctx *c, t_parser_state *parse);
 
 /* -------- string_utils.c -------------------------------------------------- */
 const char		**get_operator_strs(void);

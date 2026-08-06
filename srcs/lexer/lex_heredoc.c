@@ -12,20 +12,40 @@
 
 #include "minishell.h"
 
-void	delimit_lex_here(t_ctx *c, t_here_state *here)
+static bool	here_body_has_expansion(t_ctx *c, t_here_state *here)
+{
+	uint64_t	i;
+	char		*body;
+
+	body = get_ptr_from_offset(&c->arena[AT_STRING], here->body.pos);
+	i = 0;
+	while (i < here->body.len)
+	{
+		if (is_expansion_start(body, i))
+			return (true);
+		++i;
+	}
+	return (false);
+}
+
+uint64_t	delimit_lex_here(t_ctx *c, t_here_state *here)
 {
 	t_arena		*tokens;
 	t_token		*token;
+	uint64_t	idx;
 
 	tokens = &c->arena[AT_TOKENS];
-	token = get_ptr_from_offset(tokens,
+	idx = get_idx_from_offset(tokens,
 		arena_alloc(tokens, sizeof(t_token), _Alignof(t_token)));
+	token = get_ptr_from_idx(tokens, idx);
 	token->type = TKN_WORD;
 	token->offset = here->body.pos;
 	token->flags = TKN_IS_HERE_BODY;
+	if (here_body_has_expansion(c, here))
+		token->flags |= TKN_HAS_EXPANSION;
+	return (idx);
 }
 
-// TODO: the t_slice here is created during reduction of io_here, not done yet
 bool	is_delim_line(t_ctx *c, t_lexer_state *lex, t_here_state *here)
 {
 	t_arena		*strings;
@@ -34,10 +54,10 @@ bool	is_delim_line(t_ctx *c, t_lexer_state *lex, t_here_state *here)
 	strings = &c->arena[AT_STRING];
 	line = c->read_line + lex->char_idx;
 	return (!ft_strncmp(line, strings->buf + here->delim.pos, here->delim.len)
-		&& line[here->delim.len] == '\n');
+		&& (line[here->delim.len] == '\n'));
 }
 
-void	append_to_here_body(t_ctx *c, t_lexer_state *lex, t_here_state *here, uint64_t len)
+void	grow_here_body(t_ctx *c, t_lexer_state *lex, t_here_state *here, uint64_t len)
 {
 	t_arena	*strings;
 
@@ -47,11 +67,10 @@ void	append_to_here_body(t_ctx *c, t_lexer_state *lex, t_here_state *here, uint6
 	else
 		arena_strlcat(strings, c->read_line + lex->char_idx, len + 2);
 	here->body.len += len + 1;
-	grow_lex_token(lex, len + 1);
 	consume_char(lex, len + 1);
 }
 
-bool	get_here_doc(t_ctx *c, t_lexer_state *lex, t_here_state *here)
+uint64_t	get_here_doc(t_ctx *c, t_lexer_state *lex, t_here_state *here)
 {
 	uint64_t	len;
 
@@ -62,37 +81,36 @@ bool	get_here_doc(t_ctx *c, t_lexer_state *lex, t_here_state *here)
 			get_user_input(c, INPUT_CONTINUATION);
 			if (!c->read_line)
 			{
-				printf("minishell: warning: here-document delimited by end-of-file\n"); // TODO: proper error handling here.
-				return (false) ;
+				ft_putstr_fd("minishell: warning: here-document delimited by end-of-file\n", 2);
+				memset(&here->body, 0, sizeof(t_slice));
+				return (delimit_lex_here(c, here));
 			}
 			ft_memset(lex, 0, sizeof(t_lexer_state));
 		}
 		len = word_len(c->read_line + lex->char_idx, '\n');
 		if (!is_delim_line(c, lex, here))
-			append_to_here_body(c, lex, here, len);
+			grow_here_body(c, lex, here, len);
 		else
 		{
 			consume_char(lex, len + 1);
-			delimit_lex_here(c, here);
-			return (true);
+			return (delimit_lex_here(c, here));
 		}
 	}
 }
 
-bool	handle_here_body(t_ctx *c, t_parser_state *parse, t_lexer_state *lex, t_here_state *here)
+bool	handle_here_body(t_ctx *c, t_parser_state *parse, t_lexer_state *lex)
 {
 	t_arena		*stack;
 	t_symbol	*symbol;
+	t_node		*node;
 
 	stack = &c->arena[AT_STACK];
-	if (!get_here_doc(c, lex, here))
-	{
-		parse->flags &= ~PARSE_HERE_BODY;
-		return (false);
-	}
+	parse->here.body.pos = get_here_doc(c, lex, &parse->here);
 	parse->flags &= ~PARSE_HERE_BODY;
 	parse->flags |= PARSE_HAS_SAVED_TOKENS;
 	symbol = get_ptr_from_idx(stack, parse->stack_idx);
+	node = get_ptr_from_idx(&c->arena[AT_COMMAND], symbol->node_idx);
+	node->data.redir.arena_offset = parse->here.body.pos;
 	parse->token_idx = symbol->token_idx;							// resetting parse.token_idx to the last shifted token after getting heredoc body
 	return (true);
 }

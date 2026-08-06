@@ -56,7 +56,7 @@ const char	*get_symbol_type_name(t_symbol_type type)
 	return ("UNKNOWN");
 }
 
-const char	*get_flag_name(uint32_t bit)
+const char	*get_lex_flag_name(uint32_t bit)
 {
 	if (bit == TKN_HAS_QUOTES)
 		return ("TKN_HAS_QUOTES");
@@ -68,21 +68,26 @@ const char	*get_flag_name(uint32_t bit)
 		return ("LEX_IS_BUILDING");
 	else if (bit == LEX_AT_EOI)
 		return ("LEX_AT_EOI");
-	else if (bit == PARSE_DONE)
+	else
+		return ("UNKNOWN");
+}
+
+const char	*get_parse_flag_name(uint32_t bit)
+{
+	if (bit == PARSE_DONE)
 		return ("PARSE_DONE");
 	else if (bit == PARSE_HAS_SAVED_TOKENS)
 		return ("PARSE_HAS_SAVED_TOKENS");
 	else if (bit == PARSE_SAVE_TOKENS)
 		return ("PARSE_SAVE_TOKENS");
-	else if (bit == PARSE_HERE_PENDING)
-		return ("PARSE_HERE_PENDING");
 	else if (bit == PARSE_HERE_BODY)
 		return ("PARSE_HERE_BODY");
+	else if (bit == PARSE_ERROR)
+		return ("PARSE_ERROR");
+	else if (bit == PARSE_HAS_LOOKAHEAD)
+		return ("PARSE_HAS_LOOKAHEAD");
+	else if (bit == PARSE_LOOKAHEAD_IS_EOF)
+		return ("PARSE_LOOKAHEAD_IS_EOF");
 	else
 		return ("UNKNOWN");
 }
-
-
-
-
-

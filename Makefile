@@ -41,6 +41,7 @@ SRCS        = \
 			token_processor/ft_split_with_empty.c \
 			parser/parse_input.c \
 			parser/classify_token.c \
+			parser/reduce_handlers.c \
 			parser/shift_reduce.c \
 			lexer/lookahead.c \
 			lexer/lex_tokens.c \

@@ -24,7 +24,7 @@ void	print_flags(FILE *out, uint32_t flags)
 	bit = 1;
 	while (!(flags & bit))
 		bit <<= 1;
-	fprintf(out, "%s ", get_flag_name(bit));
+	fprintf(out, "%s ", get_lex_flag_name(bit));
 	flags ^= bit;
 	while (flags)
 	{
@@ -32,7 +32,7 @@ void	print_flags(FILE *out, uint32_t flags)
 		if (flags & bit)
 		{
 			fprintf(stderr, "|");
-			fprintf(out, "%s ", get_flag_name(bit));
+			fprintf(out, "%s ", get_lex_flag_name(bit));
 			flags ^= bit;
 		}
 	}
