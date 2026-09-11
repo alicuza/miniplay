@@ -17,7 +17,7 @@ _capture()
 		printf "\e[200~%s\e[201~\n" "$input" \
 			| ./minishell-debug --no_exec --states=none --arenas=none \
 				2>&1 >/dev/null \
-			| sed -n '/^minishell: /p'
+			| sed -n '/^shni: /p'
 	else
 		printf "\e[200~%s\e[201~\n" "$input" \
 			| ./minishell-debug --no_exec --scope="$scope" --states=none \

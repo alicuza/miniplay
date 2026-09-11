@@ -3,5 +3,13 @@
 /plan
 /notes/literature
 /notes/assignment
+/notes/archive
+/notes/comparison
+/notes/exercises
+/notes/proposals
 minishell
 minishell-debug
+*.log
+*.d
+*.o
+*.a

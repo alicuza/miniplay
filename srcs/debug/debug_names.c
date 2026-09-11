@@ -142,12 +142,12 @@ const char	*get_parse_flag_name(uint32_t bit)
 		return ("PARSE_SAVE_TOKENS");
 	else if (bit == PARSE_HAS_SAVED_TOKENS)
 		return ("PARSE_HAS_SAVED_TOKENS");
+	else if (bit == PARSE_HAS_LOOKAHEAD)
+		return ("PARSE_HAS_LOOKAHEAD");
 	else if (bit == PARSE_HERE_BODY)
 		return ("PARSE_HERE_BODY");
 	else if (bit == PARSE_ERROR)
 		return ("PARSE_ERROR");
-	else if (bit == PARSE_LOOKAHEAD_IS_EOF)
-		return ("PARSE_LOOKAHEAD_IS_EOF");
 	return ("UNKNOWN");
 }
 
@@ -157,8 +157,6 @@ const char	*get_lex_flag_name(uint32_t bit)
 		return ("TKN_HAS_QUOTES");
 	else if (bit == TKN_HAS_EXPANSION)
 		return ("TKN_HAS_EXPANSION");
-	else if (bit == TKN_IS_HERE_BODY)
-		return ("TKN_IS_HERE_BODY");
 	else if (bit == LEX_IS_BUILDING)
 		return ("LEX_IS_BUILDING");
 	else if (bit == LEX_AT_EOI)

@@ -6,7 +6,7 @@
 /*   By: nribakov <nribakov@student.42vienna.com    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/25 12:41:14 by sancuta           #+#    #+#             */
-/*   Updated: 2026/07/04 09:23:55 by sancuta          ###   ########.fr       */
+/*   Updated: 2026/09/02 12:11:15 by nribakov         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -81,7 +81,7 @@ static bool	add_cwd_to_prompt(t_ctx *c)
 	while (!cwd && errno)
 	{
 		if (errno != ERANGE)
-					// TODO: implement for error logging
+					// TODO stefan: implement error logging for debug
 			return (/* error_log("get_prompt", "get_cwd", strerror(errno)), */ false);
 		size = prompt->cap;
 		init_prompt(prompt);
@@ -115,7 +115,7 @@ char	*get_prompt(t_ctx *c, bool with_cwd)
 	if (with_cwd && !add_cwd_to_prompt(c))
 		return (get_prompt(c, NO_CWD));
 	end_prompt(prompt, c->return_status);
-	return ((char *)get_arena_ptr(prompt, prompt->stride));
+	return ((char *)get_ptr_from_offset(prompt, prompt->stride));
 }
 
 /* backup in case of other prompt related problems.

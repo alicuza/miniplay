@@ -5,13 +5,12 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: sancuta <sancuta@student.42vienna.com>     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/06/10 13:32:11 by sancuta           #+#    #+#             */
-/*   Updated: 2026/07/21 20:00:25 by sancuta          ###   ########.fr       */
+/*   Created: 2026/09/11 12:47:24 by sancuta           #+#    #+#             */
+/*   Updated: 2026/09/11 12:47:25 by sancuta          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minishell.h"
-
 
 bool	is_expansion_start(char *buf, uint64_t idx)
 {

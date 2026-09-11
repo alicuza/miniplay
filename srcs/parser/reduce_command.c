@@ -1,5 +1,4 @@
 #include "minishell.h"
-#include "parser.h"
 
 uint64_t	reduce_simple_command_from_suffix(t_ctx *c, t_parser_state *parse,
 		t_rule *rule)
@@ -64,6 +63,7 @@ static void	suffix_attach_last(t_ctx *c, t_parser_state *parse,
 		head_idx = &cmd->data.command.redir_head_idx;
 	else
 		head_idx = &cmd->data.command.arg_head_idx;
+	/* append returns the head (child_idx if the list was empty), store it back */
 	*head_idx = append_node_to_tail(c, *head_idx, child_idx);
 }
 

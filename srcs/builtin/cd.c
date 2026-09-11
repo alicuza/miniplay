@@ -2,11 +2,6 @@
 #include "env.h"
 #include "minishell.h"
 
-static bool	is_empty(char *str)
-{
-	return (str == NULL || str[0] == '\0');
-}
-
 static int	cd_path(t_ctx *c, char *curpath)
 {
 	int		result;
@@ -16,8 +11,8 @@ static int	cd_path(t_ctx *c, char *curpath)
 	if (result == EXIT_SUCCESS)
 	{
 		oldpwd = env_get(&c->env, PWD);
-		if (env_update_with_copy(&c->env, OLDPWD, oldpwd) == EXIT_FAILURE || env_update_with_copy(&c->env,
-				PWD, curpath) == EXIT_FAILURE)
+		if (env_update_with_copy(&c->env, OLDPWD, oldpwd) == EXIT_FAILURE
+			|| env_update_with_copy(&c->env, PWD, curpath) == EXIT_FAILURE)
 		{
 			result = chdir(oldpwd);
 			result = EXIT_FAILURE;
@@ -30,7 +25,7 @@ static int	cd_path(t_ctx *c, char *curpath)
 	else
 	{
 		perror("cd: Error during chdir\n");
-		return (errno);
+		return (EXIT_FAILURE);
 	}
 }
 
@@ -41,9 +36,9 @@ static int	cd_home(t_ctx *c)
 
 	result = EXIT_SUCCESS;
 	home = env_get(&c->env, HOME);
-	if (is_empty(home))
+	if (is_empty_str(home))
 	{
-		perror("cd: HOME not set\n");
+		ft_putstr_fd("cd: HOME not set\n", STDERR_FILENO);
 		result = EXIT_FAILURE;
 	}
 	else
@@ -60,10 +55,10 @@ int	cd_oldpwd(t_ctx *c)
 	int		result;
 
 	old_path = env_get(&c->env, OLDPWD);
-	if (is_empty(old_path))
+	if (is_empty_str(old_path))
 	{
-		perror("cd: OLDPWD not set\n");
-		return (EXIT_FAILURE);
+		ft_putstr_fd("cd: OLDPWD not set\n", STDERR_FILENO);
+		result = EXIT_FAILURE;
 	}
 	else
 	{
@@ -100,14 +95,14 @@ static int	cd_dir(t_ctx *c, const char *dir)
 	else
 		curpath = ft_strdup(dir);
 	if (curpath == NULL)
-		result = EXIT_FAILURE;
+		return (exit_mem_issue());
 	else
 	{
 		canonical_form = get_path_canonical_form(curpath, ft_strlen(curpath));
 		if (canonical_form == NULL)
 		{
 			ft_putstr_fd("cd: ", STDERR_FILENO);
-			ft_putstr_fd((char *) dir, STDERR_FILENO);
+			ft_putstr_fd((char *)dir, STDERR_FILENO);
 			ft_putstr_fd(": No such file or directory\n", STDERR_FILENO);
 			result = EXIT_FAILURE;
 		}
@@ -125,11 +120,11 @@ int	cd(t_ctx *c, t_command_ctx *command_ctx)
 
 	if (command_ctx->argc > 2)
 	{
-		perror("cd: too many arguments\n");
-		return (EXIT_FAILURE);
+		ft_putstr_fd("cd: too many arguments\n", STDERR_FILENO);
+		return (2);
 	}
 	dir = command_ctx->argv[1];
-	if (is_empty(dir))
+	if (is_empty_str(dir))
 		return (cd_home(c));
 	else
 	{

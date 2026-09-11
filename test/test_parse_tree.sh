@@ -297,7 +297,7 @@ test_tree_heredoc()
 	expected="$(cat <<- \eof
 		COMMAND
 			[id 1] NODE_ARG(cat) [next 0]
-			[id 2] NODE_REDIR(<< hello\n) [next 0] REDIR_HERE
+			[id 2] NODE_REDIR(<< EOF) [next 0] REDIR_HERE
 			[id 3] NODE_COMMAND [next 0] [arg_head 1] [redir_head 2]
 			[id 4] NODE_PIPELINE [next 0] [command_head 3]
 		eof
@@ -320,7 +320,7 @@ test_tree_heredoc_quoted()
 	expected="$(cat <<- \eof
 		COMMAND
 			[id 1] NODE_ARG(cat) [next 0]
-			[id 2] NODE_REDIR(<< hello\n) [next 0] REDIR_HERE REDIR_HAS_QUOTES
+			[id 2] NODE_REDIR(<< EOF) [next 0] REDIR_HERE REDIR_HAS_QUOTES
 			[id 3] NODE_COMMAND [next 0] [arg_head 1] [redir_head 2]
 			[id 4] NODE_PIPELINE [next 0] [command_head 3]
 		eof
@@ -345,9 +345,9 @@ test_tree_heredoc_multiple()
 	expected="$(cat <<- \eof
 		COMMAND
 			[id 1] NODE_ARG(cat) [next 0]
-			[id 2] NODE_REDIR(<< one\n) [next 4] REDIR_HERE
+			[id 2] NODE_REDIR(<< A) [next 4] REDIR_HERE
 			[id 3] NODE_COMMAND [next 0] [arg_head 1] [redir_head 2]
-			[id 4] NODE_REDIR(<< two\n) [next 0] REDIR_HERE
+			[id 4] NODE_REDIR(<< B) [next 0] REDIR_HERE
 			[id 5] NODE_PIPELINE [next 0] [command_head 3]
 		eof
 	)"
@@ -367,11 +367,59 @@ test_tree_heredoc_pipe()
 	expected="$(cat <<- \eof
 		COMMAND
 			[id 1] NODE_ARG(cat) [next 0]
-			[id 2] NODE_REDIR(<< body\n) [next 0] REDIR_HERE
+			[id 2] NODE_REDIR(<< E) [next 0] REDIR_HERE
 			[id 3] NODE_COMMAND [next 6] [arg_head 1] [redir_head 2]
 			[id 4] NODE_PIPELINE [next 0] [command_head 3]
 			[id 5] NODE_ARG(wc) [next 0]
 			[id 6] NODE_COMMAND [next 0] [arg_head 5] [redir_head 0]
+		eof
+	)"
+	assert_shell "$input" "$expected"
+}
+
+# An empty delimiter (<< "") quote-removes to "", which matches the first blank
+# line -- the heredoc ends there and the rest is parsed as a separate command.
+# SHAPE={heredoc}  DEPTH={flat}  COUNT={1}
+test_tree_heredoc_empty_delim()
+{
+	local input expected
+	input="$(cat <<- \eof
+		cat <<""
+		hello
+
+		world
+		eof
+	)"
+	expected="$(cat <<- \eof
+		COMMAND
+			[id 1] NODE_ARG(cat) [next 0]
+			[id 2] NODE_REDIR(<< ) [next 0] REDIR_HERE REDIR_HAS_QUOTES
+			[id 3] NODE_COMMAND [next 0] [arg_head 1] [redir_head 2]
+			[id 4] NODE_PIPELINE [next 7] [command_head 3]
+			[id 5] NODE_ARG(world) [next 0]
+			[id 6] NODE_COMMAND [next 0] [arg_head 5] [redir_head 0]
+			[id 7] NODE_PIPELINE [next 0] [command_head 6]
+		eof
+	)"
+	assert_shell "$input" "$expected"
+}
+
+# An unterminated heredoc warns at EOF and must NOT crash (regression: a NULL
+# read_line reached lex_token because the EOF branch never set LEX_AT_EOI).
+# SHAPE={heredoc}  DEPTH={flat}  COUNT={1}
+test_heredoc_unterminated_eof()
+{
+	local input expected
+	input="$(cat <<- \eof
+		cat << END
+		foo
+		eof
+	)"
+	expected="$(cat <<- \eof
+		ERROR
+			shni: warning: here-document delimited by end-of-file (wanted `END')
+		STATUS
+			0
 		eof
 	)"
 	assert_shell "$input" "$expected"
@@ -472,7 +520,7 @@ test_error_trailing_pipe()
 	)"
 	expected="$(cat <<- \eof
 		ERROR
-			minishell: syntax error near unexpected token 'end of file'
+			shni: syntax error near unexpected token 'end of file'
 		STATUS
 			2
 		eof
@@ -490,7 +538,7 @@ test_error_trailing_and()
 	)"
 	expected="$(cat <<- \eof
 		ERROR
-			minishell: syntax error near unexpected token 'end of file'
+			shni: syntax error near unexpected token 'end of file'
 		STATUS
 			2
 		eof
@@ -508,7 +556,7 @@ test_error_leading_pipe()
 	)"
 	expected="$(cat <<- \eof
 		ERROR
-			minishell: syntax error near unexpected token '|'
+			shni: syntax error near unexpected token '|'
 		STATUS
 			2
 		eof
@@ -526,7 +574,7 @@ test_error_bare_operator()
 	)"
 	expected="$(cat <<- \eof
 		ERROR
-			minishell: syntax error near unexpected token '&&'
+			shni: syntax error near unexpected token '&&'
 		STATUS
 			2
 		eof
@@ -544,7 +592,7 @@ test_error_unclosed_paren()
 	)"
 	expected="$(cat <<- \eof
 		ERROR
-			minishell: syntax error near unexpected token 'end of file'
+			shni: syntax error near unexpected token 'end of file'
 		STATUS
 			2
 		eof
@@ -562,7 +610,7 @@ test_error_stray_close_paren()
 	)"
 	expected="$(cat <<- \eof
 		ERROR
-			minishell: syntax error near unexpected token ')'
+			shni: syntax error near unexpected token ')'
 		STATUS
 			2
 		eof

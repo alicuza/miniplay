@@ -1,33 +1,6 @@
 #include "env.h"
 #include "minishell.h"
 
-static void	free_2d_arr(char **val)
-{
-	int i;
-
-	i = 0;
-	while (val[i] != NULL)
-	{
-		free(val[i]);
-		i++;
-	}
-	free(val);
-}
-
-static bool	is_valid_name(char *name)
-{
-	if (!ft_isalpha(*name) && *name != '_')
-		return (false);
-	name++;
-	while (*name != '\0')
-	{
-		if (!ft_isalnum(*name) && *name != '_')
-			return (false);
-		name++;
-	}
-	return (true);
-}
-
 int	init_env(t_env *env, char **envp)
 {
 	char **tmp;
@@ -40,9 +13,9 @@ int	init_env(t_env *env, char **envp)
 			tmp = ft_split_key_value(envp[i], '=');
 			if (tmp == NULL)
 				return (EXIT_FAILURE);
-			if (is_valid_name(tmp[0]) == false)
+			if (is_valid_var_name(tmp[0]) == false)
 			{
-				free_2d_arr(tmp);
+				free_str_arr(tmp);
 				i++;
 				continue ;
 			}
@@ -54,6 +27,7 @@ int	init_env(t_env *env, char **envp)
 			free(tmp);
 			i++;
 		}
-	add_env_defaults(env);
+	if (add_env_defaults(env) == EXIT_FAILURE)
+		return (EXIT_FAILURE);
 	return (EXIT_SUCCESS);
 }

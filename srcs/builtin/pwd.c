@@ -2,11 +2,11 @@
 /*                                                                            */
 /*                                                        :::      ::::::::   */
 /*   pwd.c                                              :+:      :+:    :+:   */
-/*                                                    +:+ +:+        
+/*                                                    +:+ +:+
 	+:+     */
-/*   By: nribakov <nribakov@student.42vienna.com    +#+  +:+      
+/*   By: nribakov <nribakov@student.42vienna.com    +#+  +:+
 	+#+        */
-/*                                                +#+#+#+#+#+  
+/*                                                +#+#+#+#+#+
 	+#+           */
 /*   Created: 2026/06/06 16:21:09 by nribakov          #+#    #+#             */
 /*   Updated: 2026/06/18 20:46:54 by nribakov         ###   ########.fr       */
@@ -39,10 +39,14 @@ int	pwd(t_ctx *c, t_command_ctx *command_ctx)
 	fprintf(stderr, "\nExecuting pwd:\n");
 #endif
 
+
 	(void)command_ctx;
 	pwd = get_pwd(c);
 	if (!pwd)
+	{
+		ft_putstr_fd("pwd: can't obtain pwd\n", STDERR_FILENO);
 		return (EXIT_FAILURE);
+	}
 	printf("%s\n", pwd);
 	free(pwd);
 	return (EXIT_SUCCESS);

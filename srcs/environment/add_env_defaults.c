@@ -1,11 +1,6 @@
 #include "env.h"
 #include "minishell.h"
 
-static bool	is_empty(char *str)
-{
-	return (str == NULL || str[0] == '\0');
-}
-
 static int	add_pwd(t_env *env)
 {
 	char	*pwd;
@@ -13,7 +8,7 @@ static int	add_pwd(t_env *env)
 	char	*value;
 
 	pwd = env_get(env, PWD);
-	if (is_empty(pwd))
+	if (is_empty_str(pwd))
 	{
 		key = ft_strdup(PWD);
 		value = getcwd(NULL, 0);
@@ -36,7 +31,7 @@ static int	add_path(t_env *env)
 	char	*value;
 
 	path = env_get(env, PATH);
-	if (is_empty(path))
+	if (is_empty_str(path))
 	{
 		key = ft_strdup(PATH);
 		value = ft_strdup(DEFAULT_PATH);
@@ -79,7 +74,7 @@ static int	add_shlvl(t_env *env)
 	int		status;
 
 	shlvl = env_get(env, SHLVL);
-	if (is_empty(shlvl))
+	if (is_empty_str(shlvl))
 	{
 		key = ft_strdup(SHLVL);
 		value = ft_strdup(DEFAULT_SHLVL);

@@ -11,7 +11,6 @@
 /* ************************************************************************** */
 
 #include "minishell.h"
-#include "minishell.h"
 
 bool	lex_token(t_ctx *c, t_lexer_state *lex)
 {

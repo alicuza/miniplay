@@ -49,5 +49,6 @@ char **env_to_envp(t_env *env)
 	env_vals = env_vals->next;
     i++;
   }
+  envp[env_len] = NULL;
   return envp;
 }

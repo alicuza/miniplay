@@ -24,5 +24,8 @@ int	env(t_ctx *c, t_command_ctx *command_ctx)
 		return (EXIT_SUCCESS);
 	}
 	else
+	{
+		ft_putstr_fd("env: enviroment is empty\n", STDERR_FILENO);
 		return (EXIT_FAILURE);
+	}
 }

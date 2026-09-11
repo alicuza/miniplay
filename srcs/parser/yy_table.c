@@ -1,5 +1,4 @@
 #include "minishell.h"
-#include "parser.h"
 
 int32_t	get_yytable(uint64_t idx)
 {

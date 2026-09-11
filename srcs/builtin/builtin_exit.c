@@ -1,17 +1,61 @@
 #include "minishell.h"
+#include <limits.h>
 
-int exit_mem_issue()
+static int	ft_isnumber(char *str)
 {
-	perror("Memory allocation error");
-	close(0);
-	return EXIT_FAILURE;
+	while (*str && ft_isspace(*str))
+	{
+		str++;
+	}
+	if (*str == 0)
+		return (0);
+	if (*str && (*str == '-' || *str == '+'))
+	{
+		str++;
+	}
+	if (*str == 0)
+		return (0);
+	while (*str)
+	{
+		if (!ft_isdigit(*str))
+			return (0);
+		str++;
+	}
+	return (1);
+}
+
+static int exit_with_code(t_ctx *c, t_command_ctx *command_ctx)
+{
+	long int exit_code;
+
+	if (ft_isnumber(command_ctx->argv[1]))
+	{
+		exit_code = ft_atol(command_ctx->argv[1]);
+		if (exit_code < INT_MAX && exit_code > INT_MIN)
+		{
+			cleanup(c);
+			free(command_ctx->pathname);
+			exit(exit_code);
+		}
+	}
+	ft_putstr_fd("exit: ", STDERR_FILENO);
+	ft_putstr_fd((char *)command_ctx->argv[1], STDERR_FILENO);
+	ft_putstr_fd(": numeric argument required", STDERR_FILENO);
+	c->should_exit = true;
+	return (2);
 }
 
 int	builtin_exit(t_ctx *c, t_command_ctx *command_ctx)
 {
-  (void) c;
-  (void) command_ctx;
-  printf("exit\n");
-  close(0);
-  return EXIT_SUCCESS;
+	if (command_ctx->argc > 2)
+	{
+		ft_putstr_fd("exit: too many arguments\n", STDERR_FILENO);
+		return (2);
+	}
+	else if (command_ctx->argc == 2)
+	{
+		return (exit_with_code(c, command_ctx));
+	}
+	c->should_exit = true;
+	return (EXIT_SUCCESS);
 }

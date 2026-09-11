@@ -1,5 +1,4 @@
 #include "minishell.h"
-#include "parser.h"
 
 uint64_t	reduce_from_term(t_ctx *c, t_parser_state *parse, t_rule *rule)
 {
@@ -17,8 +16,14 @@ uint64_t	reduce_from_term(t_ctx *c, t_parser_state *parse, t_rule *rule)
 	node_idx = alloc_node(c, node_type);
 	node = get_node_from_idx(c, node_idx);
 	if (node_type == NODE_REDIR)
+	{
 		node->data.redir.arena_offset = token->offset;
+		node->data.redir.flags = token->flags & 0x03;
+	}
 	else
+	{
 		node->data.arg.arena_offset = token->offset;
+		node->data.arg.flags = token->flags & 0x03;
+	}
 	return (node_idx);
 }

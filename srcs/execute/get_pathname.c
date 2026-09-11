@@ -1,25 +1,7 @@
 #include "env.h"
 #include "minishell.h"
 
-static void	ft_free_str_arr(char **arr)
-{
-	int	i;
-
-	i = 0;
-	while (arr[i] != NULL)
-	{
-		free(arr[i]);
-		i++;
-	}
-	free(arr);
-}
-
-static bool	is_empty(char *str)
-{
-	return (str == NULL || str[0] == '\0');
-}
-
-char	*add_prefix(char *path, const char *pathname) //TODO add only if missing
+char	*add_prefix(char *path, const char *pathname)
 {
 	char	*tmp;
 	char	*tmp1;
@@ -61,6 +43,8 @@ static int	search_in_paths(char **paths, t_command_ctx *cmd_ctx)
 		{
 			first_found = tmp;
 		}
+		if(first_found != tmp)
+			free(tmp);
 		i++;
 	}
 	free(cmd_ctx->pathname);
@@ -68,26 +52,36 @@ static int	search_in_paths(char **paths, t_command_ctx *cmd_ctx)
 	return (EXIT_SUCCESS);
 }
 
+static int get_from_current(t_command_ctx *cmd_ctx)
+{
+	char	*tmp;
+
+	tmp = ft_strjoin("./", cmd_ctx->pathname);
+	if (!tmp)
+		return (EXIT_FAILURE);
+	if (access(tmp, F_OK) == 0)
+	{
+		free(cmd_ctx->pathname);
+		cmd_ctx->pathname = tmp;
+		return (EXIT_SUCCESS);
+	}
+	free(cmd_ctx->pathname);
+	cmd_ctx->pathname = NULL;
+	return (EXIT_SUCCESS);
+} 
+
 int	get_pathname(t_ctx *c, t_command_ctx *cmd_ctx)
 {
 	char	*path;
 	char	**paths;
-	char	*tmp;
 	int		status;
 
 	path = env_get(&c->env, PATH);
-	if (is_empty(path))
+	if (is_empty_str(path))
 	{
-		tmp = ft_strjoin("./", cmd_ctx->pathname);
-		if (!tmp)
-			return (free(path), EXIT_FAILURE);
-		if (access(tmp, X_OK) == 0)
-		{
-			free(cmd_ctx->pathname);
-			cmd_ctx->pathname = tmp;
-			return (free(path), EXIT_SUCCESS);
-		}
-		return (free(path), EXIT_SUCCESS); // TODO do we need to return somthing else if access is not allowed?
+		status =  get_from_current(cmd_ctx);
+		free(path);
+		return (status);
 	}
 	else
 	{
@@ -95,7 +89,7 @@ int	get_pathname(t_ctx *c, t_command_ctx *cmd_ctx)
 		if (!paths)
 			return (free(path), EXIT_FAILURE);
 		status = search_in_paths(paths, cmd_ctx);
-		ft_free_str_arr(paths);
+		free_str_arr(paths);
 		return (free(path), status);
 	}
 }

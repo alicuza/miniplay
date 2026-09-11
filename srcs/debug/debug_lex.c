@@ -12,6 +12,12 @@
 
 #include "minishell.h"
 
+void	print_lex_rule(t_ctx *c, int n)
+{
+	if (c->dbg.states & DBG_LEXER)
+		fprintf(stderr, "rule %d\n", n);
+}
+
 void	print_flags(FILE *out, uint32_t flags)
 {
 	uint32_t	bit;

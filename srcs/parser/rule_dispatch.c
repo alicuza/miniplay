@@ -1,5 +1,4 @@
 #include "minishell.h"
-#include "parser.h"
 
 /* -------- reduction dispatch (bison rule number) -------------------------- */
 static t_rule	rule_dispatch_first(int32_t action)

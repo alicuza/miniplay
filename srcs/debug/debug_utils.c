@@ -87,8 +87,8 @@ void	print_escaped_strn(FILE *out, const char *s, size_t n)
 	}
 }
 
-void	parse_flag_list(const char *spec, uint8_t *mask, const char **names,
-		const uint8_t *bits, uint8_t all)
+void	parse_flag_list(const char *spec, uint8_t *mask,
+		const t_dbg_flag *flags, uint8_t all)
 {
 	uint64_t	len;
 	uint64_t	i;
@@ -109,12 +109,12 @@ void	parse_flag_list(const char *spec, uint8_t *mask, const char **names,
 		else
 		{
 			i = 0;
-			while (names[i])
+			while (flags[i].name)
 			{
-				if (ft_strlen(names[i]) == len
-					&& !ft_strncmp(spec + pos, names[i], len))
+				if (ft_strlen(flags[i].name) == len
+					&& !ft_strncmp(spec + pos, flags[i].name, len))
 				{
-					*mask |= bits[i];
+					*mask |= flags[i].bit;
 					break ;
 				}
 				++i;

@@ -14,7 +14,7 @@
 #            newline.  Pins parser-table behaviour that COMMAND cannot see,
 #            e.g. which lookahead forced which reduction.  (--scope=trace)
 #   COMMAND  the node tree the reductions built (--scope=command)
-#   ERROR    stderr lines that start with "minishell: "
+#   ERROR    stderr lines that start with "shni: "
 #   STATUS   the exit status
 #   STACK    the symbol stack at the end of parse_input(): symbols top-to-
 #            bottom, then the current lookahead and last parser action.
@@ -67,20 +67,20 @@ test_cmd_bare()
 			TKN_WORD(ls)
 			TKN_OPERATOR(\n)
 		TRACE
-			[bottom] 1 SYM_LINEBREAK(epsilon) [top] | SYM_WORD(ls) | reduce 45 (SYM_LINEBREAK := (epsilon))
-			[bottom] 1 SYM_LINEBREAK(epsilon) [top] | SYM_WORD(ls) | shift -> state 7
-			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_CMD_NAME(ls) [top] | SYM_NEWLINE(\n) | reduce 24 (SYM_CMD_NAME := SYM_WORD)
-			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_SIMPLE_COMMAND(node 2) [top] | SYM_NEWLINE(\n) | reduce 23 (SYM_SIMPLE_COMMAND := SYM_CMD_NAME)
-			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_COMMAND(node 2) [top] | SYM_NEWLINE(\n) | reduce 11 (SYM_COMMAND := SYM_SIMPLE_COMMAND)
-			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_PIPELINE(node 3) [top] | SYM_NEWLINE(\n) | reduce 9 (SYM_PIPELINE := SYM_COMMAND)
-			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_AND_OR(node 3) [top] | SYM_NEWLINE(\n) | reduce 6 (SYM_AND_OR := SYM_PIPELINE)
-			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_COMPLETE_COMMANDS(node 3) [top] | SYM_NEWLINE(\n) | reduce 5 (SYM_COMPLETE_COMMANDS := SYM_AND_OR)
-			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_COMPLETE_COMMANDS(node 3) [top] | SYM_NEWLINE(\n) | shift -> state 1
-			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_COMPLETE_COMMANDS(node 3) 3 SYM_NEWLINE_LIST(node 0) [top] | SYM_EOF | reduce 42 (SYM_NEWLINE_LIST := SYM_NEWLINE)
-			[bottom] 1 SYM_LINEBREAK(epsilon) 2 SYM_COMPLETE_COMMANDS(node 3) 3 SYM_LINEBREAK(node 0) [top] | SYM_EOF | reduce 44 (SYM_LINEBREAK := SYM_NEWLINE_LIST)
-			[bottom] 1 SYM_PROGRAM(node 3) [top] | SYM_EOF | reduce 2 (SYM_PROGRAM := SYM_LINEBREAK SYM_COMPLETE_COMMANDS SYM_LINEBREAK)
-			[bottom] 1 SYM_PROGRAM(node 3) [top] | SYM_EOF | shift -> state 5
-			[bottom] 1 SYM_PROGRAM(node 3) [top] | SYM_EOF | accept
+			[state 0] [la] SYM_WORD(ls) [reduce 45] [goto 4]
+			[state 4] [la] SYM_WORD(ls) [shift 7]
+			[state 7] [la] SYM_NEWLINE(\n) [reduce 24] [goto 19]
+			[state 19] [la] SYM_NEWLINE(\n) [reduce 23] [goto 18]
+			[state 18] [la] SYM_NEWLINE(\n) [reduce 11] [goto 16]
+			[state 16] [la] SYM_NEWLINE(\n) [reduce 9] [goto 15]
+			[state 15] [la] SYM_NEWLINE(\n) [reduce 6] [goto 14]
+			[state 14] [la] SYM_NEWLINE(\n) [reduce 5] [goto 13]
+			[state 13] [la] SYM_NEWLINE(\n) [shift 1]
+			[state 1] [la] SYM_EOF [reduce 42] [goto 32]
+			[state 32] [la] SYM_EOF [reduce 44] [goto 33]
+			[state 33] [la] SYM_EOF [reduce 2] [goto 2]
+			[state 2] [la] SYM_EOF [shift 5]
+			[state 2] [la] SYM_EOF [accept]
 		COMMAND
 			[id 1] NODE_ARG(ls) [next 0]
 			[id 2] NODE_COMMAND [next 0] [arg_head 1] [redir_head 0]
@@ -219,7 +219,6 @@ test_redir_heredoc()
 			TKN_OPERATOR(<<)
 			TKN_WORD(EOF)
 			TKN_OPERATOR(\n)
-			TKN_WORD(hello\n) TKN_IS_HERE_BODY
 		eof
 	)"
 	assert_shell "$input" "$expected"

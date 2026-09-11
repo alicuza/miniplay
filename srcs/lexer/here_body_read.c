@@ -1,73 +1,68 @@
 #include "minishell.h"
-#include "parser.h"
 
-static void	warn_here_eof(t_ctx *c, t_here_state *here)
+static int32_t	create_here_temp(int32_t *wfd)
 {
-	char	*delim;
+	char	*name;
+	char	*pid;
+	int32_t	rfd;
 
-	delim = get_ptr_from_offset(&c->arena[AT_STRING], here->delim.pos);
-	ft_putstr_fd("minishell: warning: here-document ", STDERR_FILENO);
-	ft_putstr_fd("delimited by end-of-file (wanted `", STDERR_FILENO);
-	ft_putstr_fd(delim, STDERR_FILENO);
-	ft_putendl_fd("')", STDERR_FILENO);
-}
-
-static bool	read_here_line(t_ctx *c, t_lexer_state *lex, t_here_state *here)
-{
-	get_user_input(c, INPUT_CONTINUATION);
-	if (!c->read_line)
+	*wfd = -1;
+	pid = ft_itoa(getpid());
+	if (!pid)
+		return (-1);
+	name = ft_strjoin(HEREDOC_TMP, pid);
+	free(pid);
+	if (!name)
+		return (-1);
+	*wfd = open(name, O_CREAT | O_EXCL | O_RDWR | O_TRUNC, 0600);
+	if (*wfd == -1 && errno == EEXIST)
 	{
-		warn_here_eof(c, here);
-		memset(&here->body, 0, sizeof(t_slice));
-		delimit_lex_here(c, here);
-		return (false);
+		unlink(name);
+		*wfd = open(name, O_CREAT | O_EXCL | O_RDWR | O_TRUNC, 0600);
 	}
-	ft_memset(lex, 0, sizeof(t_lexer_state));
-	return (true);
+	rfd = -1;
+	if (*wfd != -1)
+		rfd = open(name, O_RDONLY);
+	unlink(name);
+	free(name);
+	return (rfd);
 }
 
-static void	grow_here_body(t_ctx *c, t_lexer_state *lex, t_here_state *here,
-		uint64_t len)
+/* final fd consumed/closed by exec wiring */
+void	get_here_doc(t_ctx *c, t_lexer_state *lex)
 {
-	t_arena	*strings;
-
-	strings = &c->arena[AT_STRING];
-	if (!here->body.len)
-		here->body.pos = arena_strlcpy(strings, c->read_line + lex->char_idx,
-				len + 2);
-	else
-		arena_strlcat(strings, c->read_line + lex->char_idx, len + 2);
-	here->body.len += len + 1;
-	consume_char(lex, len + 1);
-}
-
-bool	is_delim_line(t_ctx *c, t_lexer_state *lex, t_here_state *here)
-{
-	t_arena		*strings;
-	char		*line;
-
-	strings = &c->arena[AT_STRING];
-	line = c->read_line + lex->char_idx;
-	return (!ft_strncmp(line, strings->buf + here->delim.pos, here->delim.len)
-		&& (line[here->delim.len] == '\n'));
-}
-
-void	get_here_doc(t_ctx *c, t_lexer_state *lex, t_here_state *here)
-{
+	t_node		*node;
+	char		*here_end;
+	int32_t		wfd;
+	int32_t		rfd;
+#ifdef DEBUG
+	uint64_t	line;
 	uint64_t	len;
 
-	while (true)
+	line = 0;
+#endif
+	node = get_node_from_idx(c, get_symbol_from_top(c, 1)->node_idx);
+	here_end = get_ptr_from_offset(&c->arena[AT_STRING],
+			node->data.redir.arena_offset);
+	rfd = create_here_temp(&wfd);
+	if (wfd == -1 || rfd == -1)
+		msh_error_errno("heredoc", "temporary file");
+	while ((c->read_line[lex->char_idx]
+			|| read_here_line(c, lex, here_end))
+		&& !here_line_ends(c, lex, here_end))
 	{
-		if (!c->read_line[lex->char_idx]
-			&& !read_here_line(c, lex, here))
-			return;
-		len = word_len(c->read_line + lex->char_idx, '\n');
-		if (is_delim_line(c, lex, here))
+#ifdef DEBUG
+		if (c->dbg.states & DBG_HEREDOC)
 		{
-			consume_char(lex, len + 1);
-			delimit_lex_here(c, here);
-			return;
+			len = word_len(c->read_line + lex->char_idx, '\n');
+			print_here_line(c, lex, ++line, len);
 		}
-		grow_here_body(c, lex, here, len);
+#endif
+		if (wfd != -1)
+			write_here_line(c, wfd, lex, node);
 	}
+	ft_close_fd(&wfd);
+	if (lex->flags & LEX_INTERRUPTED)
+		ft_close_fd(&rfd);
+	node->data.redir.fd = rfd;
 }

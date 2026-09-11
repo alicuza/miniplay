@@ -6,7 +6,7 @@
 /*   By: nribakov <nribakov@student.42vienna.com    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/11 14:43:42 by nribakov          #+#    #+#             */
-/*   Updated: 2026/08/02 16:07:17 by nribakov         ###   ########.fr       */
+/*   Updated: 2026/09/11 14:11:13 by sancuta          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -64,7 +64,7 @@ static char	*get_substring(char const *s, char c, int n)
 	return (ft_strdup(""));
 }
 
-static void	ft_free_all(char **result, int n)
+static void	ft_free_everything(char **result, int n)
 {
 	int	i;
 
@@ -93,7 +93,7 @@ char	**ft_split_with_empty(char const *s, char c)
 		result[i] = get_substring(s, c, i);
 		if (!result[i])
 		{
-			ft_free_all(result, i);
+			ft_free_everything(result, i);
 			return (NULL);
 		}
 		i++;

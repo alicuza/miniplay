@@ -5,19 +5,17 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: sancuta <sancuta@student.42vienna.com>     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/08/08 15:10:00 by sancuta           #+#    #+#             */
-/*   Updated: 2026/08/08 18:39:03 by sancuta          ###   ########.fr       */
+/*   Created: 2026/09/05 18:41:13 by sancuta           #+#    #+#             */
+/*   Updated: 2026/09/05 18:41:17 by sancuta          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minishell.h"
-#include "minishell.h"
-#include "parser.h"
 
 uint64_t	alloc_node(t_ctx *c, t_node_type type)
 {
-	t_arena	*commands;
-	t_node	*node;
+	t_arena		*commands;
+	t_node		*node;
 	uint64_t	idx;
 
 	commands = &c->arena[AT_COMMAND];
